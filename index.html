@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v12.0 ⚽</title>
+  <title>Prode Mojarrero v13.0 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -31,7 +31,7 @@
 </head>
 <body class="pb-24">
 
-  <!-- HEADER CON LOGO DE LAS MOJARRAS F.C. -->
+  <!-- HEADER -->
   <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
     <div class="flex items-center space-x-3">
       <div id="logoContainer" class="w-11 h-11 rounded-full bg-black border-2 border-[#39FF14] flex items-center justify-center overflow-hidden shadow-[0_0_10px_rgba(57,255,20,0.3)]">
@@ -67,7 +67,7 @@
     </div>
   </header>
 
-  <!-- NAVEGACIÓN INFERIOR (TABS) -->
+  <!-- TABS DE NAVEGACIÓN -->
   <nav class="fixed bottom-0 left-0 right-0 bg-black border-t border-[#39FF14]/30 flex justify-around p-2 z-50 text-xs">
     <button onclick="switchTab('pronosticos')" class="flex flex-col items-center text-[#39FF14]">
       <span>⚽</span><span>Pronósticos</span>
@@ -85,7 +85,7 @@
 
   <main class="p-4 max-w-md mx-auto">
 
-    <!-- LOGIN / REGISTRO CON PIN -->
+    <!-- LOGIN -->
     <section id="loginSection" class="bg-[#111] p-6 rounded-xl border border-[#39FF14]/40 my-6">
       <h2 class="text-lg font-bold neon-text mb-4 text-center">Ingreso de Jugador</h2>
       <div class="space-y-4">
@@ -104,9 +104,12 @@
 
     <!-- SECCIÓN 1: PRONÓSTICOS -->
     <section id="tab-pronosticos" class="tab-content hidden">
-      <h2 class="text-md font-bold neon-text mb-3">Tus Pronósticos</h2>
+      <h2 class="text-md font-bold neon-text mb-1">Tus Pronósticos</h2>
+      <p class="text-[11px] text-gray-400 mb-3">Ingresá tus resultados y presioná el botón para guardarlos en la nube.</p>
+      
       <div id="matchesList" class="space-y-4"></div>
-      <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider">Guardar Pronósticos</button>
+      
+      <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider shadow-lg">💾 Guardar Mis Pronósticos</button>
     </section>
 
     <!-- SECCIÓN 2: POSICIONES -->
@@ -135,7 +138,7 @@
       <div id="teamsList" class="space-y-4"></div>
     </section>
 
-    <!-- SECCIÓN 4: PANEL DE ADMIN -->
+    <!-- SECCIÓN 4: ADMIN -->
     <section id="tab-admin" class="tab-content hidden">
       <h2 class="text-md font-bold text-red-500 mb-3">Panel de Administración</h2>
       
@@ -146,21 +149,20 @@
 
       <div id="adminPanel" class="hidden space-y-6">
 
-        <!-- 1. CREAR Y GESTIONAR EQUIPOS -->
+        <!-- 1. CREAR EQUIPOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
           <h3 class="text-sm font-bold neon-text">1. Crear y Modificar Equipos</h3>
           <div class="flex space-x-2">
             <input type="text" id="newTeamName" placeholder="Nombre del Equipo" class="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white">
             <button onclick="crearEquipo()" class="bg-[#39FF14] text-black font-bold px-3 py-1 rounded text-xs">Crear</button>
           </div>
-
           <hr class="border-gray-800 my-2">
           <div id="adminTeamsManager" class="space-y-3 text-xs"></div>
         </div>
 
         <!-- 2. ARMAR PARTIDOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
-          <h3 class="text-sm font-bold neon-text">2. Armar Partidos (Fecha y Hora)</h3>
+          <h3 class="text-sm font-bold neon-text">2. Armar Partidos</h3>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[10px] text-gray-400">Local</label>
@@ -178,15 +180,15 @@
           <button onclick="crearPartido()" class="w-full py-2 bg-[#39FF14] text-black font-bold rounded text-xs">Agregar Partido</button>
         </div>
 
-        <!-- 3. CARGAR RESULTADOS / ELIMINAR PARTIDOS -->
+        <!-- 3. RESULTADOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Eliminar Partidos</h3>
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados</h3>
           <div id="adminMatches" class="space-y-3"></div>
         </div>
 
-        <!-- 4. GESTIÓN DE JUGADORES Y PINS -->
+        <!-- 4. GESTIÓN DE JUGADORES -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">4. Modificar PINs de Jugadores</h3>
+          <h3 class="text-sm font-bold neon-text">4. Modificar PINs / Usuarios</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
 
@@ -196,7 +198,6 @@
   </main>
 
   <script>
-    // Configuración Firebase con tus credenciales
     const firebaseConfig = {
       apiKey: "AIzaSyDA1ja5f3OlRKkqTbE-lOc_Ou4UdZvk4nA",
       authDomain: "prode-mojarrero-d05c0.firebaseapp.com",
@@ -226,7 +227,6 @@
           state.matches = data.matches || [];
           state.teams = data.teams || [];
         } else {
-          // Si la base está vacía, crea los equipos base
           state.teams = [
             { nombre: 'Las Mojarras F.C.', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
             { nombre: 'Pirañas al Talón FC', integrantes: [] },
@@ -243,7 +243,7 @@
     }
 
     function saveState() {
-      db.collection('prode_data').doc('state').set({
+      return db.collection('prode_data').doc('state').set({
         users: state.users,
         matches: state.matches,
         teams: state.teams
@@ -335,7 +335,7 @@
       if (tabId === 'equipos') renderEquipos();
     }
 
-    // PRONÓSTICOS
+    // PRONÓSTICOS CON ESTADO GUARDADO VISIBLE
     function renderPronosticos() {
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
@@ -348,22 +348,33 @@
       state.matches.forEach(m => {
         const matchTime = new Date(m.fechaHora);
         const isLocked = now >= matchTime;
-        const userPredictions = (state.currentUser && state.users[state.currentUser]?.pronosticos[m.id]) || { l: '', v: '' };
+        const userPreds = (state.currentUser && state.users[state.currentUser]?.pronosticos) ? state.users[state.currentUser].pronosticos[m.id] : null;
+
+        const gl = (userPreds && userPreds.l !== undefined && userPreds.l !== null) ? userPreds.l : '';
+        const gv = (userPreds && userPreds.v !== undefined && userPreds.v !== null) ? userPreds.v : '';
+        const hasSaved = (gl !== '' && gv !== '');
 
         const hasRealScore = (m.golesL !== null && m.golesV !== null);
         const realScoreHTML = (isLocked && hasRealScore) 
           ? `<div class="text-[10px] text-[#39FF14] text-center font-bold mt-2">Resultado real: ${m.golesL} - ${m.golesV}</div>` 
           : (isLocked ? `<div class="text-[10px] text-gray-500 text-center mt-2">Esperando resultado final...</div>` : '');
 
+        const statusBadge = hasSaved 
+          ? `<span class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded text-[9px] font-bold">✓ Guardado (${gl} - ${gv})</span>`
+          : `<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[9px]">Sin pronóstico</span>`;
+
         container.innerHTML += `
-          <div class="bg-[#111] p-3 rounded-lg border border-gray-800">
-            <div class="text-[10px] text-gray-400 mb-2 text-center">📅 ${m.fechaHora ? m.fechaHora.replace('T', ' ') : 'Sin fecha'} hs ${isLocked ? '<span class="text-red-500 font-bold">(CERRADO)</span>' : ''}</div>
+          <div class="bg-[#111] p-3 rounded-lg border ${hasSaved ? 'border-[#39FF14]/40' : 'border-gray-800'}">
+            <div class="flex items-center justify-between text-[10px] text-gray-400 mb-2">
+              <span>📅 ${m.fechaHora ? m.fechaHora.replace('T', ' ') : 'Sin fecha'} hs ${isLocked ? '<strong class="text-red-500">(CERRADO)</strong>' : ''}</span>
+              ${statusBadge}
+            </div>
             <div class="flex items-center justify-between">
               <span class="w-1/3 text-right font-bold text-xs">${m.local}</span>
               <div class="flex items-center space-x-1">
-                <input type="number" id="pred_l_${m.id}" value="${userPredictions.l !== undefined ? userPredictions.l : ''}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white">
+                <input type="number" id="pred_l_${m.id}" value="${gl}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
                 <span class="text-xs text-gray-500">-</span>
-                <input type="number" id="pred_v_${m.id}" value="${userPredictions.v !== undefined ? userPredictions.v : ''}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white">
+                <input type="number" id="pred_v_${m.id}" value="${gv}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
               </div>
               <span class="w-1/3 text-left font-bold text-xs">${m.visitante}</span>
             </div>
@@ -376,21 +387,47 @@
     function guardarPronosticos() {
       if (!state.currentUser) return alert("Primero debés ingresar con tu PIN.");
       const now = new Date();
+      let guardadosCount = 0;
+
+      if (!state.users[state.currentUser]) {
+        state.users[state.currentUser] = { pin: '0000', pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
+      }
+      if (!state.users[state.currentUser].pronosticos) {
+        state.users[state.currentUser].pronosticos = {};
+      }
 
       state.matches.forEach(m => {
         if (!m.fechaHora || now < new Date(m.fechaHora)) {
-          const gl = document.getElementById(`pred_l_${m.id}`).value;
-          const gv = document.getElementById(`pred_v_${m.id}`).value;
-          if (gl !== '' && gv !== '') {
-            if (!state.users[state.currentUser].pronosticos) {
-              state.users[state.currentUser].pronosticos = {};
+          const inputL = document.getElementById(`pred_l_${m.id}`);
+          const inputV = document.getElementById(`pred_v_${m.id}`);
+
+          if (inputL && inputV) {
+            const gl = inputL.value.trim();
+            const gv = inputV.value.trim();
+
+            if (gl !== '' && gv !== '') {
+              state.users[state.currentUser].pronosticos[m.id] = { 
+                l: parseInt(gl), 
+                v: parseInt(gv) 
+              };
+              guardadosCount++;
             }
-            state.users[state.currentUser].pronosticos[m.id] = { l: parseInt(gl), v: parseInt(gv) };
           }
         }
       });
-      saveState();
-      alert("¡Pronósticos guardados correctamente!");
+
+      if (guardadosCount === 0) {
+        alert("Ingresá al menos un resultado válido para guardar.");
+        return;
+      }
+
+      saveState().then(() => {
+        alert("¡Pronósticos guardados correctamente en la nube!");
+        renderPronosticos();
+      }).catch(err => {
+        alert("Error al guardar en la nube. Verificá tu conexión.");
+        console.error(err);
+      });
     }
 
     // POSICIONES
@@ -429,10 +466,10 @@
         tbody.innerHTML += `
           <tr class="border-b border-gray-900">
             <td class="p-3 font-bold ${idx === 0 ? 'neon-text' : ''}">${idx + 1}</td>
-            <td class="p-3">${nombre}</td>
+            <td class="p-3 font-bold">${nombre}</td>
             <td class="p-3 text-center text-gray-400">${data.exactos || 0}</td>
             <td class="p-3 text-center text-gray-400">${data.tendencias || 0}</td>
-            <td class="p-3 text-right font-bold text-[#39FF14]">${data.puntos || 0}</td>
+            <td class="p-3 text-right font-bold text-[#39FF14] text-sm">${data.puntos || 0}</td>
           </tr>
         `;
       });
@@ -478,7 +515,6 @@
       document.getElementById('newTeamName').value = '';
       updateAdminSelects();
       renderAdmin();
-      alert(`Equipo "${name}" creado.`);
     }
 
     function editarNombreEquipo(index) {
@@ -570,8 +606,6 @@
       // 1. Equipos
       const tContainer = document.getElementById('adminTeamsManager');
       tContainer.innerHTML = '';
-      if (state.teams.length === 0) tContainer.innerHTML = '<p class="text-gray-500">No hay equipos registrados.</p>';
-
       state.teams.forEach((t, idx) => {
         tContainer.innerHTML += `
           <div class="bg-black p-3 rounded border border-gray-800 space-y-2">
@@ -583,7 +617,6 @@
               </div>
             </div>
             <div class="text-[11px] text-gray-400">
-              <strong>Jugadores:</strong>
               <div class="flex flex-wrap gap-1 mt-1">
                 ${t.integrantes ? t.integrantes.map((i, pIdx) => `
                   <span class="bg-[#222] px-2 py-0.5 rounded flex items-center space-x-1">
@@ -591,7 +624,7 @@
                     <button onclick="borrarJugadorDeEquipo(${idx},${pIdx})" class="text-red-400 font-bold ml-1">×</button>
                   </span>
                 `).join('') : ''}
-                <button onclick="sumarJugadorAEquipo(${idx})" class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded font-bold">+ Agregar Jugador</button>
+                <button onclick="sumarJugadorAEquipo(${idx})" class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded font-bold">+ Jugador</button>
               </div>
             </div>
           </div>
@@ -601,8 +634,6 @@
       // 2. Partidos y Resultados
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
-      if (state.matches.length === 0) mContainer.innerHTML = '<p class="text-gray-500">No hay partidos creados.</p>';
-
       state.matches.forEach(m => {
         mContainer.innerHTML += `
           <div class="text-xs flex items-center justify-between bg-black p-2 rounded border border-gray-900">
@@ -615,7 +646,7 @@
               <span>-</span>
               <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white rounded">
               <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">OK</button>
-              <button onclick="eliminarPartido(${m.id})" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded font-bold" title="Eliminar partido">🗑️</button>
+              <button onclick="eliminarPartido(${m.id})" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded font-bold">🗑️</button>
             </div>
           </div>
         `;
@@ -624,8 +655,6 @@
       // 3. Usuarios
       const uContainer = document.getElementById('adminUsersList');
       uContainer.innerHTML = '';
-      if (Object.keys(state.users).length === 0) uContainer.innerHTML = '<p class="text-gray-500">Sin usuarios registrados.</p>';
-
       Object.entries(state.users).forEach(([u, d]) => {
         uContainer.innerHTML += `
           <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
@@ -634,8 +663,8 @@
               <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
             </div>
             <div class="space-x-1">
-              <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">Cambiar PIN</button>
-              <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Eliminar</button>
+              <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
+              <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
             </div>
           </div>
         `;
@@ -660,14 +689,11 @@
         state.users[u].pin = newPin.trim();
         saveState();
         renderAdmin();
-        alert(`PIN de ${u} actualizado a ${newPin.trim()}`);
-      } else if (newPin !== null) {
-        alert("El PIN debe tener exactamente 4 dígitos.");
       }
     }
 
     function eliminarUsuario(u) {
-      if (confirm(`¿Seguro que querés eliminar al jugador "${u}" del Prode?`)) {
+      if (confirm(`¿Seguro que querés eliminar al jugador "${u}"?`)) {
         delete state.users[u];
         if (state.currentUser === u) logout();
         saveState();
