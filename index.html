@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prode Mojarrero ⚽</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #050505;
+      color: #e5e5e5;
+      font-family: system-ui, -apple-system, sans-serif;
+    }
+    .neon-text {
+      color: #39FF14;
+      text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
+    }
+    .neon-border {
+      border-color: #39FF14;
+      box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+    }
+    .neon-btn {
+      background-color: #39FF14;
+      color: #000000;
+      font-weight: bold;
+    }
+    .neon-btn:hover {
+      background-color: #2ce00e;
+      box-shadow: 0 0 12px rgba(57, 255, 20, 0.6);
+    }
+  </style>
+</head>
+<body class="pb-20">
+
+  <!-- HEADER CON LOGO Y TÍTULO -->
+  <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <!-- Contenedor del Logo -->
+      <div class="w-10 h-10 rounded-full bg-[#111] border border-[#39FF14] flex items-center justify-center overflow-hidden">
+        <span class="text-xl">🐟</span>
+      </div>
+      <h1 class="text-xl font-extrabold tracking-wider uppercase neon-text">Prode Mojarrero</h1>
+    </div>
+    <div id="userInfo" class="text-xs text-gray-400"></div>
+  </header>
+
+  <!-- NAVEGACIÓN INFERIOR (TABS) -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-black border-t border-[#39FF14]/30 flex justify-around p-2 z-50 text-xs">
+    <button onclick="switchTab('pronosticos')" class="flex flex-col items-center text-[#39FF14]">
+      <span>⚽</span><span>Pronósticos</span>
+    </button>
+    <button onclick="switchTab('posiciones')" class="flex flex-col items-center text-gray-400 hover:text-[#39FF14]">
+      <span>🏆</span><span>Posiciones</span>
+    </button>
+    <button onclick="switchTab('equipos')" class="flex flex-col items-center text-gray-400 hover:text-[#39FF14]">
+      <span>👕</span><span>Equipos</span>
+    </button>
+    <button onclick="switchTab('admin')" class="flex flex-col items-center text-gray-400 hover:text-[#39FF14]">
+      <span>⚙️</span><span>Admin</span>
+    </button>
+  </nav>
+
+  <main class="p-4 max-w-md mx-auto">
+
+    <!-- LOGIN / REGISTRO CON PIN -->
+    <section id="loginSection" class="bg-[#111] p-6 rounded-xl border border-[#39FF14]/40 my-6">
+      <h2 class="text-lg font-bold neon-text mb-4 text-center">Ingreso de Jugador</h2>
+      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" class="space-y-4">
+        <div>
+          <label class="block text-xs uppercase mb-1 text-gray-300">Nombre / Apodo</label>
+          <input type="text" id="usernameInput" required class="w-[#100%] w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
+        </div>
+        <div>
+          <label class="block text-xs uppercase mb-1 text-gray-300">PIN (4 dígitos)</label>
+          <input type="password" id="pinInput" maxlength="4" required class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
+        </div>
+        <button type="submit" class="w-full py-2 rounded neon-btn uppercase tracking-wider">Entrar / Registrarse</button>
+      </form>
+      <p id="loginError" class="text-red-500 text-xs mt-2 text-center hidden"></p>
+    </section>
+
+    <!-- SECCIÓN 1: PRONÓSTICOS -->
+    <section id="tab-pronosticos" class="tab-content hidden">
+      <h2 class="text-md font-bold neon-text mb-3">Tus Pronósticos - Fecha 1</h2>
+      <div id="matchesList" class="space-y-4"></div>
+      <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider">Guardar Pronósticos</button>
+    </section>
+
+    <!-- SECCIÓN 2: POSICIONES -->
+    <section id="tab-posiciones" class="tab-content hidden">
+      <h2 class="text-md font-bold neon-text mb-3">Tabla General del Prode</h2>
+      <div class="bg-[#111] rounded-xl border border-gray-800 overflow-hidden">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-black text-[#39FF14] border-b border-gray-800">
+            <tr>
+              <th class="p-3">#</th>
+              <th class="p-3">Jugador</th>
+              <th class="p-3 text-center">EX</th>
+              <th class="p-3 text-center">TE</th>
+              <th class="p-3 text-right">Pts</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody"></tbody>
+        </table>
+      </div>
+      <p class="text-[10px] text-gray-500 mt-2">* EX: Resultado Exacto (3 pts) | TE: Tendencia (1 pt)</p>
+    </section>
+
+    <!-- SECCIÓN 3: PLANTELES DE EQUIPOS -->
+    <section id="tab-equipos" class="tab-content hidden">
+      <h2 class="text-md font-bold neon-text mb-3">Planteles del Torneo</h2>
+      <div id="teamsList" class="space-y-4"></div>
+    </section>
+
+    <!-- SECCIÓN 4: PANEL DE ADMIN -->
+    <section id="tab-admin" class="tab-content hidden">
+      <h2 class="text-md font-bold text-red-500 mb-3">Panel de Administración</h2>
+      <div id="adminAuth" class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
+        <input type="password" id="adminPassInput" placeholder="Clave de Admin (admin123)" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
+        <button onclick="checkAdmin()" class="w-full py-2 bg-red-600 text-white rounded font-bold">Ingresar como Admin</button>
+      </div>
+
+      <div id="adminPanel" class="hidden space-y-6">
+        <!-- Gestión de Partidos -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
+          <h3 class="text-sm font-bold neon-text mb-2">Resultados Reales</h3>
+          <div id="adminMatches" class="space-y-3"></div>
+        </div>
+
+        <!-- Gestión de PINs de Jugadores -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
+          <h3 class="text-sm font-bold neon-text mb-2">Gestión de PINs</h3>
+          <div id="adminUsersList" class="space-y-2 text-xs"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // DATOS EN MEMORIA LOCAL (LocalStorage)
+    let state = {
+      currentUser: null,
+      users: JSON.parse(localStorage.getItem('pm_users')) || {},
+      matches: JSON.parse(localStorage.getItem('pm_matches')) || [
+        { id: 1, local: 'Los Mojarras', visitante: 'Deportivo C', fechaHora: '2026-04-10T19:00', golesL: null, golesV: null },
+        { id: 2, local: 'La Sub 21', visitante: 'Atlético Bar', fechaHora: '2026-04-10T21:00', golesL: null, golesV: null }
+      ],
+      teams: [
+        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico', 'Gonzalo'] },
+        { nombre: 'Deportivo C', integrantes: ['Marcos', 'Esteban', 'Javier', 'Matías'] }
+      ]
+    };
+
+    function saveState() {
+      localStorage.setItem('pm_users', JSON.stringify(state.users));
+      localStorage.setItem('pm_matches', JSON.stringify(state.matches));
+    }
+
+    // LOGIN & REGISTRO
+    function handleLogin() {
+      const name = document.getElementById('usernameInput').value.trim();
+      const pin = document.getElementById('pinInput').value.trim();
+      const err = document.getElementById('loginError');
+
+      if (!name || pin.length !== 4) {
+        err.innerText = "Ingresá un nombre y un PIN de 4 dígitos.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      if (state.users[name]) {
+        if (state.users[name].pin !== pin) {
+          err.innerText = "PIN incorrecto para este jugador.";
+          err.classList.remove('hidden');
+          return;
+        }
+      } else {
+        state.users[name] = { pin: pin, pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
+        saveState();
+      }
+
+      state.currentUser = name;
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('userInfo').innerText = `Jugador: ${name}`;
+      switchTab('pronosticos');
+    }
+
+    // NAVEGACIÓN DE TABS
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+      if (tabId === 'pronosticos') renderPronosticos();
+      if (tabId === 'posiciones') renderPosiciones();
+      if (tabId === 'equipos') renderEquipos();
+    }
+
+    // RENDER PRONÓSTICOS CON BLOQUEO DE HORA
+    function renderPronosticos() {
+      const container = document.getElementById('matchesList');
+      container.innerHTML = '';
+      const now = new Date();
+
+      state.matches.forEach(m => {
+        const matchTime = new Date(m.fechaHora);
+        const isLocked = now >= matchTime;
+        const userPredictions = state.users[state.currentUser]?.pronosticos[m.id] || { l: '', v: '' };
+
+        container.innerHTML += `
+          <div class="bg-[#111] p-3 rounded-lg border border-gray-800">
+            <div class="text-[10px] text-gray-400 mb-2 text-center">📅 ${m.fechaHora.replace('T', ' ')} hs ${isLocked ? '<span class="text-red-500 font-bold">(CERRADO)</span>' : ''}</div>
+            <div class="flex items-center justify-between">
+              <span class="w-1/3 text-right font-bold text-xs">${m.local}</span>
+              <div class="flex items-center space-x-1">
+                <input type="number" id="pred_l_${m.id}" value="${userPredictions.l}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white">
+                <span class="text-xs text-gray-500">-</span>
+                <input type="number" id="pred_v_${m.id}" value="${userPredictions.v}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white">
+              </div>
+              <span class="w-1/3 text-left font-bold text-xs">${m.visitante}</span>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function guardarPronosticos() {
+      if (!state.currentUser) return alert("Primero debés ingresar con tu PIN.");
+      const now = new Date();
+
+      state.matches.forEach(m => {
+        if (now < new Date(m.fechaHora)) {
+          const gl = document.getElementById(`pred_l_${m.id}`).value;
+          const gv = document.getElementById(`pred_v_${m.id}`).value;
+          if (gl !== '' && gv !== '') {
+            state.users[state.currentUser].pronosticos[m.id] = { l: parseInt(gl), v: parseInt(gv) };
+          }
+        }
+      });
+      saveState();
+      alert("¡Pronósticos guardados correctamente!");
+    }
+
+    // RENDER POSICIONES Y CÁLCULO DE PUNTOS
+    function calcularPuntos() {
+      Object.keys(state.users).forEach(u => {
+        let pts = 0, ex = 0, te = 0;
+        const preds = state.users[u].pronosticos;
+
+        state.matches.forEach(m => {
+          if (m.golesL !== null && m.golesV !== null && preds[m.id]) {
+            const pL = preds[m.id].l;
+            const pV = preds[m.id].v;
+            const rL = m.golesL;
+            const rV = m.golesV;
+
+            if (pL === rL && pV === rV) {
+              pts += 3; ex++;
+            } else if ((pL > pV && rL > rV) || (pL < pV && rL < rV) || (pL === pV && rL === rV)) {
+              pts += 1; te++;
+            }
+          }
+        });
+        state.users[u].puntos = pts;
+        state.users[u].exactos = ex;
+        state.users[u].tendencias = te;
+      });
+    }
+
+    function renderPosiciones() {
+      calcularPuntos();
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = '';
+
+      const sorted = Object.entries(state.users).sort((a, b) => b[1].puntos - a[1].puntos);
+
+      sorted.forEach(([nombre, data], idx) => {
+        tbody.innerHTML += `
+          <tr class="border-b border-gray-900">
+            <td class="p-3 font-bold ${idx === 0 ? 'neon-text' : ''}">${idx + 1}</td>
+            <td class="p-3">${nombre}</td>
+            <td class="p-3 text-center text-gray-400">${data.exactos}</td>
+            <td class="p-3 text-center text-gray-400">${data.tendencias}</td>
+            <td class="p-3 text-right font-bold text-[#39FF14]">${data.puntos}</td>
+          </tr>
+        `;
+      });
+    }
+
+    // RENDER PLANTELES
+    function renderEquipos() {
+      const container = document.getElementById('teamsList');
+      container.innerHTML = '';
+      state.teams.forEach(t => {
+        container.innerHTML += `
+          <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
+            <h3 class="text-sm font-bold text-[#39FF14] mb-2">🛡️ ${t.nombre}</h3>
+            <ul class="text-xs text-gray-300 grid grid-cols-2 gap-1">
+              ${t.integrantes.map(i => `<li>• ${i}</li>`).join('')}
+            </ul>
+          </div>
+        `;
+      });
+    }
+
+    // ADMIN
+    function checkAdmin() {
+      if (document.getElementById('adminPassInput').value === 'admin123') {
+        document.getElementById('adminAuth').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        renderAdmin();
+      } else {
+        alert("Clave incorrecta.");
+      }
+    }
+
+    function renderAdmin() {
+      const mContainer = document.getElementById('adminMatches');
+      mContainer.innerHTML = '';
+      state.matches.forEach(m => {
+        mContainer.innerHTML += `
+          <div class="text-xs flex items-center justify-between bg-black p-2 rounded">
+            <span>${m.local} vs ${m.visitante}</span>
+            <div class="flex items-center space-x-1">
+              <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" class="w-8 text-center bg-[#222] text-white">
+              <span>-</span>
+              <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white">
+              <button onclick="guardarResultado(${m.id})" class="bg-green-600 px-2 py-1 text-[10px] rounded">OK</button>
+            </div>
+          </div>
+        `;
+      });
+
+      const uContainer = document.getElementById('adminUsersList');
+      uContainer.innerHTML = '';
+      Object.entries(state.users).forEach(([u, d]) => {
+        uContainer.innerHTML += `
+          <div class="flex justify-between items-center bg-black p-2 rounded">
+            <span>${u} (PIN: <strong>${d.pin}</strong>)</span>
+            <button onclick="resetPin('${u}')" class="text-red-400 text-[10px]">Cambiar PIN</button>
+          </div>
+        `;
+      });
+    }
+
+    function guardarResultado(id) {
+      const gl = document.getElementById(`real_l_${id}`).value;
+      const gv = document.getElementById(`real_v_${id}`).value;
+      const match = state.matches.find(m => m.id === id);
+      if (match && gl !== '' && gv !== '') {
+        match.golesL = parseInt(gl);
+        match.golesV = parseInt(gv);
+        saveState();
+        alert("Resultado actualizado y tabla recalculada.");
+      }
+    }
+
+    function resetPin(u) {
+      const newPin = prompt(`Nuevo PIN de 4 dígitos para ${u}:`);
+      if (newPin && newPin.length === 4) {
+        state.users[u].pin = newPin;
+        saveState();
+        renderAdmin();
+      }
+    }
+  </script>
+</body>
+</html>
