@@ -118,7 +118,7 @@
 
       <div id="adminPanel" class="hidden space-y-6">
 
-        <!-- CREAR Y GESTIONAR EQUIPOS -->
+        <!-- CREAR Y EDITAR EQUIPOS Y PLANTELES -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
           <h3 class="text-sm font-bold neon-text">1. Crear Nuevo Equipo</h3>
           <div class="flex space-x-2">
@@ -126,14 +126,10 @@
             <button onclick="crearEquipo()" class="bg-[#39FF14] text-black font-bold px-3 py-1 rounded text-xs">Crear</button>
           </div>
 
-          <h4 class="text-xs font-bold text-gray-400 mt-3">Agregar Jugador a Equipo:</h4>
-          <div class="space-y-2">
-            <select id="selectTeamForPlayer" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white"></select>
-            <div class="flex space-x-2">
-              <input type="text" id="newPlayerName" placeholder="Nombre del Jugador" class="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white">
-              <button onclick="agregarJugadorAEquipo()" class="bg-blue-600 text-white font-bold px-3 py-1 rounded text-xs">Sumar</button>
-            </div>
-          </div>
+          <hr class="border-gray-800 my-2">
+
+          <h3 class="text-sm font-bold neon-text">Modificar Equipos Preexistentes</h3>
+          <div id="adminTeamsManager" class="space-y-3 text-xs"></div>
         </div>
 
         <!-- CREAR PARTIDOS Y FECHAS -->
@@ -157,14 +153,14 @@
         </div>
 
         <!-- RESULTADOS REALES -->
-        <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
-          <h3 class="text-sm font-bold neon-text mb-2">3. Cargar Resultados Reales</h3>
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados Reales</h3>
           <div id="adminMatches" class="space-y-3"></div>
         </div>
 
-        <!-- GESTIÓN DE PINS -->
-        <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
-          <h3 class="text-sm font-bold neon-text mb-2">4. Gestión de PINs de Jugadores</h3>
+        <!-- GESTIÓN DE JUGADORES Y PINS -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
+          <h3 class="text-sm font-bold neon-text">4. Administrar Jugadores y PINs</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
 
@@ -178,7 +174,10 @@
       currentUser: null,
       users: JSON.parse(localStorage.getItem('pm_users')) || {},
       matches: JSON.parse(localStorage.getItem('pm_matches')) || [],
-      teams: JSON.parse(localStorage.getItem('pm_teams')) || []
+      teams: JSON.parse(localStorage.getItem('pm_teams')) || [
+        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
+        { nombre: 'Deportivo C', integrantes: ['Marcos', 'Esteban', 'Javier'] }
+      ]
     };
 
     function saveState() {
@@ -201,7 +200,7 @@
 
       if (state.users[name]) {
         if (state.users[name].pin !== pin) {
-          err.innerText = "PIN incorrecto.";
+          err.innerText = "PIN incorrecto para este jugador.";
           err.classList.remove('hidden');
           return;
         }
@@ -225,7 +224,7 @@
       if (tabId === 'equipos') renderEquipos();
     }
 
-    // RENDER PRONÓSTICOS
+    // PRONÓSTICOS
     function renderPronosticos() {
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
@@ -339,7 +338,7 @@
       });
     }
 
-    // FUNCIONES ADMINISTRADOR
+    // FUNCIONES DE ADMINISTRACIÓN
     function checkAdmin() {
       if (document.getElementById('adminPassInput').value === 'admin123') {
         document.getElementById('adminAuth').classList.add('hidden');
@@ -358,30 +357,52 @@
       saveState();
       document.getElementById('newTeamName').value = '';
       updateAdminSelects();
+      renderAdmin();
       alert(`Equipo "${name}" creado.`);
     }
 
-    function agregarJugadorAEquipo() {
-      const teamIndex = document.getElementById('selectTeamForPlayer').value;
-      const playerName = document.getElementById('newPlayerName').value.trim();
-      if (teamIndex === '' || !playerName) return alert("Seleccioná un equipo e ingresá el nombre del jugador.");
-      state.teams[teamIndex].integrantes.push(playerName);
+    function editarNombreEquipo(index) {
+      const nuevo = prompt("Nuevo nombre del equipo:", state.teams[index].nombre);
+      if (nuevo && nuevo.trim() !== '') {
+        state.teams[index].nombre = nuevo.trim();
+        saveState();
+        updateAdminSelects();
+        renderAdmin();
+      }
+    }
+
+    function eliminarEquipo(index) {
+      if (confirm(`¿Eliminar el equipo "${state.teams[index].nombre}"?`)) {
+        state.teams.splice(index, 1);
+        saveState();
+        updateAdminSelects();
+        renderAdmin();
+      }
+    }
+
+    function sumarJugadorAEquipo(index) {
+      const name = prompt("Nombre del nuevo integrante:");
+      if (name && name.trim() !== '') {
+        state.teams[index].integrantes.push(name.trim());
+        saveState();
+        renderAdmin();
+      }
+    }
+
+    function borrarJugadorDeEquipo(teamIdx, playerIdx) {
+      state.teams[teamIdx].integrantes.splice(playerIdx, 1);
       saveState();
-      document.getElementById('newPlayerName').value = '';
-      alert(`Jugador "${playerName}" sumado al equipo.`);
+      renderAdmin();
     }
 
     function updateAdminSelects() {
-      const teamSelectPlayer = document.getElementById('selectTeamForPlayer');
       const selectLocal = document.getElementById('selectLocal');
       const selectVisitante = document.getElementById('selectVisitante');
 
-      teamSelectPlayer.innerHTML = '';
       selectLocal.innerHTML = '';
       selectVisitante.innerHTML = '';
 
-      state.teams.forEach((t, i) => {
-        teamSelectPlayer.innerHTML += `<option value="${i}">${t.nombre}</option>`;
+      state.teams.forEach((t) => {
         selectLocal.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
         selectVisitante.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
       });
@@ -409,57 +430,51 @@
       alert("¡Partido programado correctamente!");
     }
 
+    function eliminarPartido(id) {
+      if (confirm("¿Eliminar este partido?")) {
+        state.matches = state.matches.filter(m => m.id !== id);
+        saveState();
+        renderAdmin();
+      }
+    }
+
     function renderAdmin() {
+      // Gestor de Equipos
+      const tContainer = document.getElementById('adminTeamsManager');
+      tContainer.innerHTML = '';
+      if (state.teams.length === 0) tContainer.innerHTML = '<p class="text-gray-500">No hay equipos registrados.</p>';
+
+      state.teams.forEach((t, idx) => {
+        tContainer.innerHTML += `
+          <div class="bg-black p-3 rounded border border-gray-800 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-[#39FF14]">${t.nombre}</span>
+              <div class="space-x-1">
+                <button onclick="editarNombreEquipo(${idx})" class="bg-gray-800 text-white px-2 py-0.5 rounded text-[10px]">Editar Nombre</button>
+                <button onclick="eliminarEquipo(${idx})" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">Borrar Equipo</button>
+              </div>
+            </div>
+            <div class="text-[11px] text-gray-400">
+              <strong>Integrantes:</strong>
+              <div class="flex flex-wrap gap-1 mt-1">
+                ${t.integrantes.map((i, pIdx) => `
+                  <span class="bg-[#222] px-2 py-0.5 rounded flex items-center space-x-1">
+                    <span>${i}</span>
+                    <button onclick="borrarJugadorDeEquipo(${idx},${pIdx})" class="text-red-400 font-bold ml-1">×</button>
+                  </span>
+                `).join('')}
+                <button onclick="sumarJugadorAEquipo(${idx})" class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded font-bold">+ Agregar</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      // Gestor de Partidos
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
       if (state.matches.length === 0) mContainer.innerHTML = '<p class="text-gray-500">No hay partidos creados.</p>';
 
       state.matches.forEach(m => {
         mContainer.innerHTML += `
-          <div class="text-xs flex items-center justify-between bg-black p-2 rounded">
-            <span>${m.local} vs ${m.visitante}</span>
-            <div class="flex items-center space-x-1">
-              <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" class="w-8 text-center bg-[#222] text-white">
-              <span>-</span>
-              <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white">
-              <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded">OK</button>
-            </div>
-          </div>
-        `;
-      });
-
-      const uContainer = document.getElementById('adminUsersList');
-      uContainer.innerHTML = '';
-      Object.entries(state.users).forEach(([u, d]) => {
-        uContainer.innerHTML += `
-          <div class="flex justify-between items-center bg-black p-2 rounded">
-            <span>${u} (PIN: <strong>${d.pin}</strong>)</span>
-            <button onclick="resetPin('${u}')" class="text-red-400 text-[10px]">Cambiar PIN</button>
-          </div>
-        `;
-      });
-    }
-
-    function guardarResultado(id) {
-      const gl = document.getElementById(`real_l_${id}`).value;
-      const gv = document.getElementById(`real_v_${id}`).value;
-      const match = state.matches.find(m => m.id === id);
-      if (match && gl !== '' && gv !== '') {
-        match.golesL = parseInt(gl);
-        match.golesV = parseInt(gv);
-        saveState();
-        alert("Resultado guardado y posiciones actualizadas.");
-      }
-    }
-
-    function resetPin(u) {
-      const newPin = prompt(`Nuevo PIN de 4 dígitos para ${u}:`);
-      if (newPin && newPin.length === 4) {
-        state.users[u].pin = newPin;
-        saveState();
-        renderAdmin();
-      }
-    }
-  </script>
-</body>
-</html>
+          <div class="text-xs flex items-center justify-be
