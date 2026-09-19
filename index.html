@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v5.0 ⚽</title>
+  <title>Prode Mojarrero v6.0 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -28,11 +28,34 @@
 </head>
 <body class="pb-24">
 
-  <!-- HEADER CON LOGO Y TÍTULO -->
+  <!-- HEADER CON LOGO SVG VECTORIAL DE LAS MOJARRAS F.C. -->
   <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
     <div class="flex items-center space-x-3">
-      <div id="logoContainer" class="w-10 h-10 rounded-full bg-[#111] border border-[#39FF14] flex items-center justify-center overflow-hidden">
-        <span class="text-xl">🐟</span>
+      <div id="logoContainer" class="w-11 h-11 rounded-full bg-black border-2 border-[#39FF14] flex items-center justify-center overflow-hidden shadow-[0_0_10px_rgba(57,255,20,0.3)]">
+        <svg viewBox="0 0 200 200" class="w-full h-full">
+          <circle cx="100" cy="100" r="98" fill="#000" />
+          <circle cx="100" cy="100" r="72" fill="none" stroke="#39FF14" stroke-width="16" />
+          <path d="M 15 100 L 185 100" stroke="#000" stroke-width="26" />
+          <path d="M 15 100 L 185 100" stroke="#39FF14" stroke-width="18" />
+          <!-- Pelota Central -->
+          <circle cx="100" cy="100" r="22" fill="#39FF14" stroke="#000" stroke-width="3" />
+          <polygon points="100,86 111,94 107,106 93,106 89,94" fill="#000" />
+          <!-- Siluetas de Peces -->
+          <path d="M 85 70 Q 70 65 60 72 Q 70 78 85 74 Z" fill="#39FF14" />
+          <path d="M 125 72 Q 115 68 108 73 Q 115 78 125 75 Z" fill="#39FF14" />
+          <path d="M 140 82 Q 132 78 126 82 Q 132 86 140 84 Z" fill="#39FF14" />
+          <path d="M 75 125 Q 65 122 58 126 Q 65 130 75 128 Z" fill="#39FF14" />
+          <path d="M 135 125 Q 128 122 122 126 Q 128 130 135 128 Z" fill="#39FF14" />
+          <!-- Textos -->
+          <path id="textArcTop" d="M 38,100 A 62,62 0 0,1 162,100" fill="none" />
+          <text font-size="13" font-weight="900" fill="#000" text-anchor="middle">
+            <textPath href="#textArcTop" startOffset="50%">LAS MOJARRAS</textPath>
+          </text>
+          <path id="textArcBottom" d="M 45,100 A 55,55 0 0,0 155,100" fill="none" />
+          <text font-size="14" font-weight="900" fill="#000" text-anchor="middle">
+            <textPath href="#textArcBottom" startOffset="50%">F. C.</textPath>
+          </text>
+        </svg>
       </div>
       <h1 class="text-xl font-extrabold tracking-wider uppercase neon-text">Prode Mojarrero</h1>
     </div>
@@ -115,7 +138,7 @@
       <h2 class="text-md font-bold text-red-500 mb-3">Panel de Administración</h2>
       
       <div id="adminAuth" class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
-        <input type="password" id="adminPassInput" placeholder="Clave de Admin (admin123)" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
+        <input type="password" id="adminPassInput" placeholder="Contraseña de Admin" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
         <button onclick="checkAdmin()" class="w-full py-2 bg-red-600 text-white rounded font-bold">Ingresar como Admin</button>
       </div>
 
@@ -171,7 +194,7 @@
   </main>
 
   <script>
-    const VERSION_APP = 'v5.0';
+    const VERSION_APP = 'v6.0';
     if (localStorage.getItem('pm_app_version') !== VERSION_APP) {
       localStorage.removeItem('pm_teams');
       localStorage.setItem('pm_app_version', VERSION_APP);
@@ -182,7 +205,7 @@
       users: JSON.parse(localStorage.getItem('pm_users')) || {},
       matches: JSON.parse(localStorage.getItem('pm_matches')) || [],
       teams: JSON.parse(localStorage.getItem('pm_teams')) || [
-        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
+        { nombre: 'Las Mojarras F.C.', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
         { nombre: 'Pirañas al Talón FC', integrantes: [] },
         { nombre: 'Jirafas de Mar FC', integrantes: [] },
         { nombre: 'Barracudas FC', integrantes: [] },
