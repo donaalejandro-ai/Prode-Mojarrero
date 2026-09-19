@@ -15,10 +15,6 @@
       color: #39FF14;
       text-shadow: 0 0 8px rgba(57, 255, 20, 0.4);
     }
-    .neon-border {
-      border-color: #39FF14;
-      box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
-    }
     .neon-btn {
       background-color: #39FF14;
       color: #000000;
@@ -30,12 +26,11 @@
     }
   </style>
 </head>
-<body class="pb-20">
+<body class="pb-24">
 
   <!-- HEADER CON LOGO Y TÍTULO -->
   <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
     <div class="flex items-center space-x-3">
-      <!-- Contenedor del Logo -->
       <div class="w-10 h-10 rounded-full bg-[#111] border border-[#39FF14] flex items-center justify-center overflow-hidden">
         <span class="text-xl">🐟</span>
       </div>
@@ -68,7 +63,7 @@
       <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();" class="space-y-4">
         <div>
           <label class="block text-xs uppercase mb-1 text-gray-300">Nombre / Apodo</label>
-          <input type="text" id="usernameInput" required class="w-[#100%] w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
+          <input type="text" id="usernameInput" required class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
         </div>
         <div>
           <label class="block text-xs uppercase mb-1 text-gray-300">PIN (4 dígitos)</label>
@@ -81,7 +76,7 @@
 
     <!-- SECCIÓN 1: PRONÓSTICOS -->
     <section id="tab-pronosticos" class="tab-content hidden">
-      <h2 class="text-md font-bold neon-text mb-3">Tus Pronósticos - Fecha 1</h2>
+      <h2 class="text-md font-bold neon-text mb-3">Tus Pronósticos</h2>
       <div id="matchesList" class="space-y-4"></div>
       <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider">Guardar Pronósticos</button>
     </section>
@@ -115,49 +110,84 @@
     <!-- SECCIÓN 4: PANEL DE ADMIN -->
     <section id="tab-admin" class="tab-content hidden">
       <h2 class="text-md font-bold text-red-500 mb-3">Panel de Administración</h2>
+      
       <div id="adminAuth" class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
         <input type="password" id="adminPassInput" placeholder="Clave de Admin (admin123)" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
         <button onclick="checkAdmin()" class="w-full py-2 bg-red-600 text-white rounded font-bold">Ingresar como Admin</button>
       </div>
 
       <div id="adminPanel" class="hidden space-y-6">
-        <!-- Gestión de Partidos -->
+
+        <!-- CREAR Y GESTIONAR EQUIPOS -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
+          <h3 class="text-sm font-bold neon-text">1. Crear Nuevo Equipo</h3>
+          <div class="flex space-x-2">
+            <input type="text" id="newTeamName" placeholder="Nombre del Equipo" class="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white">
+            <button onclick="crearEquipo()" class="bg-[#39FF14] text-black font-bold px-3 py-1 rounded text-xs">Crear</button>
+          </div>
+
+          <h4 class="text-xs font-bold text-gray-400 mt-3">Agregar Jugador a Equipo:</h4>
+          <div class="space-y-2">
+            <select id="selectTeamForPlayer" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white"></select>
+            <div class="flex space-x-2">
+              <input type="text" id="newPlayerName" placeholder="Nombre del Jugador" class="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white">
+              <button onclick="agregarJugadorAEquipo()" class="bg-blue-600 text-white font-bold px-3 py-1 rounded text-xs">Sumar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CREAR PARTIDOS Y FECHAS -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
+          <h3 class="text-sm font-bold neon-text">2. Programar Partido / Fecha</h3>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-[10px] text-gray-400">Local</label>
+              <select id="selectLocal" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white"></select>
+            </div>
+            <div>
+              <label class="text-[10px] text-gray-400">Visitante</label>
+              <select id="selectVisitante" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white"></select>
+            </div>
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-400">Fecha y Hora de Inicio</label>
+            <input type="datetime-local" id="matchDateTime" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white">
+          </div>
+          <button onclick="crearPartido()" class="w-full py-2 bg-[#39FF14] text-black font-bold rounded text-xs">Agregar Partido a la Fecha</button>
+        </div>
+
+        <!-- RESULTADOS REALES -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
-          <h3 class="text-sm font-bold neon-text mb-2">Resultados Reales</h3>
+          <h3 class="text-sm font-bold neon-text mb-2">3. Cargar Resultados Reales</h3>
           <div id="adminMatches" class="space-y-3"></div>
         </div>
 
-        <!-- Gestión de PINs de Jugadores -->
+        <!-- GESTIÓN DE PINS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
-          <h3 class="text-sm font-bold neon-text mb-2">Gestión de PINs</h3>
+          <h3 class="text-sm font-bold neon-text mb-2">4. Gestión de PINs de Jugadores</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
+
       </div>
     </section>
 
   </main>
 
   <script>
-    // DATOS EN MEMORIA LOCAL (LocalStorage)
     let state = {
       currentUser: null,
       users: JSON.parse(localStorage.getItem('pm_users')) || {},
-      matches: JSON.parse(localStorage.getItem('pm_matches')) || [
-        { id: 1, local: 'Los Mojarras', visitante: 'Deportivo C', fechaHora: '2026-04-10T19:00', golesL: null, golesV: null },
-        { id: 2, local: 'La Sub 21', visitante: 'Atlético Bar', fechaHora: '2026-04-10T21:00', golesL: null, golesV: null }
-      ],
-      teams: [
-        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico', 'Gonzalo'] },
-        { nombre: 'Deportivo C', integrantes: ['Marcos', 'Esteban', 'Javier', 'Matías'] }
-      ]
+      matches: JSON.parse(localStorage.getItem('pm_matches')) || [],
+      teams: JSON.parse(localStorage.getItem('pm_teams')) || []
     };
 
     function saveState() {
       localStorage.setItem('pm_users', JSON.stringify(state.users));
       localStorage.setItem('pm_matches', JSON.stringify(state.matches));
+      localStorage.setItem('pm_teams', JSON.stringify(state.teams));
     }
 
-    // LOGIN & REGISTRO
+    // LOGIN
     function handleLogin() {
       const name = document.getElementById('usernameInput').value.trim();
       const pin = document.getElementById('pinInput').value.trim();
@@ -171,7 +201,7 @@
 
       if (state.users[name]) {
         if (state.users[name].pin !== pin) {
-          err.innerText = "PIN incorrecto para este jugador.";
+          err.innerText = "PIN incorrecto.";
           err.classList.remove('hidden');
           return;
         }
@@ -186,7 +216,7 @@
       switchTab('pronosticos');
     }
 
-    // NAVEGACIÓN DE TABS
+    // TABS
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       document.getElementById(`tab-${tabId}`).classList.remove('hidden');
@@ -195,10 +225,14 @@
       if (tabId === 'equipos') renderEquipos();
     }
 
-    // RENDER PRONÓSTICOS CON BLOQUEO DE HORA
+    // RENDER PRONÓSTICOS
     function renderPronosticos() {
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
+      if (state.matches.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center">Aún no hay partidos cargados por el administrador.</p>';
+        return;
+      }
       const now = new Date();
 
       state.matches.forEach(m => {
@@ -240,7 +274,7 @@
       alert("¡Pronósticos guardados correctamente!");
     }
 
-    // RENDER POSICIONES Y CÁLCULO DE PUNTOS
+    // POSICIONES
     function calcularPuntos() {
       Object.keys(state.users).forEach(u => {
         let pts = 0, ex = 0, te = 0;
@@ -270,7 +304,6 @@
       calcularPuntos();
       const tbody = document.getElementById('leaderboardBody');
       tbody.innerHTML = '';
-
       const sorted = Object.entries(state.users).sort((a, b) => b[1].puntos - a[1].puntos);
 
       sorted.forEach(([nombre, data], idx) => {
@@ -286,36 +319,101 @@
       });
     }
 
-    // RENDER PLANTELES
+    // EQUIPOS
     function renderEquipos() {
       const container = document.getElementById('teamsList');
       container.innerHTML = '';
+      if (state.teams.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center">No hay equipos registrados aún.</p>';
+        return;
+      }
       state.teams.forEach(t => {
         container.innerHTML += `
           <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
             <h3 class="text-sm font-bold text-[#39FF14] mb-2">🛡️ ${t.nombre}</h3>
             <ul class="text-xs text-gray-300 grid grid-cols-2 gap-1">
-              ${t.integrantes.map(i => `<li>• ${i}</li>`).join('')}
+              ${t.integrantes.length > 0 ? t.integrantes.map(i => `<li>• ${i}</li>`).join('') : '<li class="text-gray-600">Sin integrantes</li>'}
             </ul>
           </div>
         `;
       });
     }
 
-    // ADMIN
+    // FUNCIONES ADMINISTRADOR
     function checkAdmin() {
       if (document.getElementById('adminPassInput').value === 'admin123') {
         document.getElementById('adminAuth').classList.add('hidden');
         document.getElementById('adminPanel').classList.remove('hidden');
+        updateAdminSelects();
         renderAdmin();
       } else {
-        alert("Clave incorrecta.");
+        alert("Clave de Admin incorrecta.");
       }
+    }
+
+    function crearEquipo() {
+      const name = document.getElementById('newTeamName').value.trim();
+      if (!name) return alert("Escribí el nombre del equipo.");
+      state.teams.push({ nombre: name, integrantes: [] });
+      saveState();
+      document.getElementById('newTeamName').value = '';
+      updateAdminSelects();
+      alert(`Equipo "${name}" creado.`);
+    }
+
+    function agregarJugadorAEquipo() {
+      const teamIndex = document.getElementById('selectTeamForPlayer').value;
+      const playerName = document.getElementById('newPlayerName').value.trim();
+      if (teamIndex === '' || !playerName) return alert("Seleccioná un equipo e ingresá el nombre del jugador.");
+      state.teams[teamIndex].integrantes.push(playerName);
+      saveState();
+      document.getElementById('newPlayerName').value = '';
+      alert(`Jugador "${playerName}" sumado al equipo.`);
+    }
+
+    function updateAdminSelects() {
+      const teamSelectPlayer = document.getElementById('selectTeamForPlayer');
+      const selectLocal = document.getElementById('selectLocal');
+      const selectVisitante = document.getElementById('selectVisitante');
+
+      teamSelectPlayer.innerHTML = '';
+      selectLocal.innerHTML = '';
+      selectVisitante.innerHTML = '';
+
+      state.teams.forEach((t, i) => {
+        teamSelectPlayer.innerHTML += `<option value="${i}">${t.nombre}</option>`;
+        selectLocal.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
+        selectVisitante.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
+      });
+    }
+
+    function crearPartido() {
+      const local = document.getElementById('selectLocal').value;
+      const visitante = document.getElementById('selectVisitante').value;
+      const fechaHora = document.getElementById('matchDateTime').value;
+
+      if (!local || !visitante || !fechaHora) return alert("Completá todos los campos del partido.");
+      if (local === visitante) return alert("El local y visitante no pueden ser el mismo equipo.");
+
+      state.matches.push({
+        id: Date.now(),
+        local: local,
+        visitante: visitante,
+        fechaHora: fechaHora,
+        golesL: null,
+        golesV: null
+      });
+
+      saveState();
+      renderAdmin();
+      alert("¡Partido programado correctamente!");
     }
 
     function renderAdmin() {
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
+      if (state.matches.length === 0) mContainer.innerHTML = '<p class="text-gray-500">No hay partidos creados.</p>';
+
       state.matches.forEach(m => {
         mContainer.innerHTML += `
           <div class="text-xs flex items-center justify-between bg-black p-2 rounded">
@@ -324,7 +422,7 @@
               <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" class="w-8 text-center bg-[#222] text-white">
               <span>-</span>
               <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white">
-              <button onclick="guardarResultado(${m.id})" class="bg-green-600 px-2 py-1 text-[10px] rounded">OK</button>
+              <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded">OK</button>
             </div>
           </div>
         `;
@@ -350,7 +448,7 @@
         match.golesL = parseInt(gl);
         match.golesV = parseInt(gv);
         saveState();
-        alert("Resultado actualizado y tabla recalculada.");
+        alert("Resultado guardado y posiciones actualizadas.");
       }
     }
 
