@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v3.0 ⚽</title>
+  <title>Prode Mojarrero v4.0 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -28,7 +28,7 @@
 </head>
 <body class="pb-24">
 
-  <!-- HEADER CON LOGO Y TÍTULO -->
+  <!-- HEADER -->
   <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
     <div class="flex items-center space-x-3">
       <div class="w-10 h-10 rounded-full bg-[#111] border border-[#39FF14] flex items-center justify-center overflow-hidden">
@@ -36,7 +36,10 @@
       </div>
       <h1 class="text-xl font-extrabold tracking-wider uppercase neon-text">Prode Mojarrero</h1>
     </div>
-    <div id="userInfo" class="text-xs text-gray-400"></div>
+    <div class="flex items-center space-x-2">
+      <span id="userInfo" class="text-xs text-gray-400"></span>
+      <button id="btnLogout" onclick="logout()" class="hidden text-[10px] bg-red-900/60 text-red-300 border border-red-700/50 px-2 py-1 rounded font-bold">Salir</button>
+    </div>
   </header>
 
   <!-- NAVEGACIÓN INFERIOR (TABS) -->
@@ -168,8 +171,8 @@
   </main>
 
   <script>
-    // Limpieza automática de la memoria del navegador para datos viejos ("Equipo 1 / 2")
-    const VERSION_APP = 'v3.0';
+    // Forzado de actualización v4.0 para borrar equipos genéricos anteriores
+    const VERSION_APP = 'v4.0';
     if (localStorage.getItem('pm_app_version') !== VERSION_APP) {
       localStorage.removeItem('pm_teams');
       localStorage.setItem('pm_app_version', VERSION_APP);
@@ -180,8 +183,13 @@
       users: JSON.parse(localStorage.getItem('pm_users')) || {},
       matches: JSON.parse(localStorage.getItem('pm_matches')) || [],
       teams: JSON.parse(localStorage.getItem('pm_teams')) || [
-        { nombre: 'Los Mojarras', integrantes: [] },
-        { nombre: 'Deportivo C', integrantes: [] }
+        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
+        { nombre: 'Pirañas al Talón FC', integrantes: [] },
+        { nombre: 'Jirafas de Mar FC', integrantes: [] },
+        { nombre: 'Barracudas FC', integrantes: [] },
+        { nombre: 'Corvinas FC', integrantes: [] },
+        { nombre: 'Deportivo Borrón FC', integrantes: [] },
+        { nombre: 'Medusas Eléctricas FC', integrantes: [] }
       ]
     };
 
@@ -201,11 +209,27 @@
       if (btn) btn.addEventListener('click', handleLogin);
 
       if (state.currentUser && state.users[state.currentUser]) {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('userInfo').innerText = `Jugador: ${state.currentUser}`;
+        showLoggedInUser();
         switchTab('pronosticos');
       }
     });
+
+    function showLoggedInUser() {
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('userInfo').innerText = `Jugador: ${state.currentUser}`;
+      document.getElementById('btnLogout').classList.remove('hidden');
+    }
+
+    function logout() {
+      state.currentUser = null;
+      localStorage.removeItem('pm_session_user');
+      document.getElementById('loginSection').classList.remove('hidden');
+      document.getElementById('userInfo').innerText = '';
+      document.getElementById('btnLogout').classList.add('hidden');
+      document.getElementById('usernameInput').value = '';
+      document.getElementById('pinInput').value = '';
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    }
 
     // LOGIN
     function handleLogin() {
@@ -231,14 +255,18 @@
 
       state.currentUser = name;
       saveState();
+      err.classList.add('hidden');
 
-      document.getElementById('loginSection').classList.add('hidden');
-      document.getElementById('userInfo').innerText = `Jugador: ${name}`;
+      showLoggedInUser();
       switchTab('pronosticos');
     }
 
     // TABS
     function switchTab(tabId) {
+      if (!state.currentUser && tabId !== 'admin') {
+        document.getElementById('loginSection').classList.remove('hidden');
+        return;
+      }
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
       const activeTab = document.getElementById(`tab-${tabId}`);
       if (activeTab) activeTab.classList.remove('hidden');
@@ -392,7 +420,6 @@
         const nuevoNombre = nuevo.trim();
         state.teams[index].nombre = nuevoNombre;
 
-        // Actualizar partidos creados si cambió de nombre
         state.matches.forEach(m => {
           if (m.local === antiguoNombre) m.local = nuevoNombre;
           if (m.visitante === antiguoNombre) m.visitante = nuevoNombre;
@@ -414,7 +441,7 @@
     }
 
     function sumarJugadorAEquipo(index) {
-      const name = prompt("Nombre del integrante del equipo:");
+      const name = prompt("Nombre del integrante:");
       if (name && name.trim() !== '') {
         state.teams[index].integrantes.push(name.trim());
         saveState();
@@ -574,7 +601,7 @@
     function eliminarUsuario(u) {
       if (confirm(`¿Seguro que querés eliminar al jugador "${u}" del Prode?`)) {
         delete state.users[u];
-        if (state.currentUser === u) state.currentUser = null;
+        if (state.currentUser === u) logout();
         saveState();
         renderAdmin();
       }
