@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v2 ⚽</title>
+  <title>Prode Mojarrero v3.0 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -28,7 +28,7 @@
 </head>
 <body class="pb-24">
 
-  <!-- HEADER -->
+  <!-- HEADER CON LOGO Y TÍTULO -->
   <header class="bg-black border-b border-[#39FF14]/30 p-4 sticky top-0 z-50 flex items-center justify-between">
     <div class="flex items-center space-x-3">
       <div class="w-10 h-10 rounded-full bg-[#111] border border-[#39FF14] flex items-center justify-center overflow-hidden">
@@ -57,7 +57,7 @@
 
   <main class="p-4 max-w-md mx-auto">
 
-    <!-- LOGIN / REGISTRO -->
+    <!-- LOGIN / REGISTRO CON PIN -->
     <section id="loginSection" class="bg-[#111] p-6 rounded-xl border border-[#39FF14]/40 my-6">
       <h2 class="text-lg font-bold neon-text mb-4 text-center">Ingreso de Jugador</h2>
       <div class="space-y-4">
@@ -120,7 +120,7 @@
 
         <!-- 1. CREAR Y GESTIONAR EQUIPOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
-          <h3 class="text-sm font-bold neon-text">1. Crear y Gestionar Equipos</h3>
+          <h3 class="text-sm font-bold neon-text">1. Crear y Modificar Equipos</h3>
           <div class="flex space-x-2">
             <input type="text" id="newTeamName" placeholder="Nombre del Equipo" class="flex-1 bg-black border border-gray-700 rounded p-2 text-xs text-white">
             <button onclick="crearEquipo()" class="bg-[#39FF14] text-black font-bold px-3 py-1 rounded text-xs">Crear</button>
@@ -130,7 +130,7 @@
           <div id="adminTeamsManager" class="space-y-3 text-xs"></div>
         </div>
 
-        <!-- 2. ARMAR PARTIDOS (CON FECHA Y HORA) -->
+        <!-- 2. ARMAR PARTIDOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
           <h3 class="text-sm font-bold neon-text">2. Armar Partidos (Fecha y Hora)</h3>
           <div class="grid grid-cols-2 gap-2">
@@ -150,15 +150,15 @@
           <button onclick="crearPartido()" class="w-full py-2 bg-[#39FF14] text-black font-bold rounded text-xs">Agregar Partido</button>
         </div>
 
-        <!-- 3. CARGAR RESULTADOS REALES -->
+        <!-- 3. CARGAR RESULTADOS / ELIMINAR PARTIDOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados Reales</h3>
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Eliminar Partidos</h3>
           <div id="adminMatches" class="space-y-3"></div>
         </div>
 
         <!-- 4. GESTIÓN DE JUGADORES Y PINS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">4. Modificar PINs y Jugadores</h3>
+          <h3 class="text-sm font-bold neon-text">4. Modificar PINs de Jugadores</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
 
@@ -168,13 +168,20 @@
   </main>
 
   <script>
+    // Limpieza automática de la memoria del navegador para datos viejos ("Equipo 1 / 2")
+    const VERSION_APP = 'v3.0';
+    if (localStorage.getItem('pm_app_version') !== VERSION_APP) {
+      localStorage.removeItem('pm_teams');
+      localStorage.setItem('pm_app_version', VERSION_APP);
+    }
+
     let state = {
       currentUser: localStorage.getItem('pm_session_user') || null,
       users: JSON.parse(localStorage.getItem('pm_users')) || {},
       matches: JSON.parse(localStorage.getItem('pm_matches')) || [],
       teams: JSON.parse(localStorage.getItem('pm_teams')) || [
-        { nombre: 'Los Mojarras', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
-        { nombre: 'Deportivo C', integrantes: ['Marcos', 'Esteban', 'Javier'] }
+        { nombre: 'Los Mojarras', integrantes: [] },
+        { nombre: 'Deportivo C', integrantes: [] }
       ]
     };
 
@@ -246,7 +253,7 @@
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
       if (state.matches.length === 0) {
-        container.innerHTML = '<p class="text-xs text-gray-500 text-center">No hay partidos creados por el administrador.</p>';
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center">No hay partidos cargados por el administrador.</p>';
         return;
       }
       const now = new Date();
@@ -379,9 +386,18 @@
     }
 
     function editarNombreEquipo(index) {
-      const nuevo = prompt("Nuevo nombre del equipo:", state.teams[index].nombre);
+      const nuevo = prompt("Editar nombre del equipo:", state.teams[index].nombre);
       if (nuevo && nuevo.trim() !== '') {
-        state.teams[index].nombre = nuevo.trim();
+        const antiguoNombre = state.teams[index].nombre;
+        const nuevoNombre = nuevo.trim();
+        state.teams[index].nombre = nuevoNombre;
+
+        // Actualizar partidos creados si cambió de nombre
+        state.matches.forEach(m => {
+          if (m.local === antiguoNombre) m.local = nuevoNombre;
+          if (m.visitante === antiguoNombre) m.visitante = nuevoNombre;
+        });
+
         saveState();
         updateAdminSelects();
         renderAdmin();
@@ -444,11 +460,11 @@
 
       saveState();
       renderAdmin();
-      alert("¡Partido programado correctamente!");
+      alert("¡Partido programado!");
     }
 
     function eliminarPartido(id) {
-      if (confirm("¿Eliminar este partido?")) {
+      if (confirm("¿Estás seguro de que querés borrar este partido?")) {
         state.matches = state.matches.filter(m => m.id !== id);
         saveState();
         renderAdmin();
@@ -456,7 +472,7 @@
     }
 
     function renderAdmin() {
-      // Lista de Equipos
+      // 1. Equipos
       const tContainer = document.getElementById('adminTeamsManager');
       tContainer.innerHTML = '';
       if (state.teams.length === 0) tContainer.innerHTML = '<p class="text-gray-500">No hay equipos registrados.</p>';
@@ -467,8 +483,8 @@
             <div class="flex justify-between items-center">
               <span class="font-bold text-[#39FF14]">${t.nombre}</span>
               <div class="space-x-1">
-                <button onclick="editarNombreEquipo(${idx})" class="bg-gray-800 text-white px-2 py-0.5 rounded text-[10px]">Editar</button>
-                <button onclick="eliminarEquipo(${idx})" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">Borrar</button>
+                <button onclick="editarNombreEquipo(${idx})" class="bg-gray-800 text-white px-2 py-0.5 rounded text-[10px]">✏️ Editar</button>
+                <button onclick="eliminarEquipo(${idx})" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">🗑️ Borrar</button>
               </div>
             </div>
             <div class="text-[11px] text-gray-400">
@@ -487,7 +503,7 @@
         `;
       });
 
-      // Partidos Programados
+      // 2. Partidos y Resultados
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
       if (state.matches.length === 0) mContainer.innerHTML = '<p class="text-gray-500">No hay partidos creados.</p>';
@@ -504,16 +520,16 @@
               <span>-</span>
               <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white rounded">
               <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">OK</button>
-              <button onclick="eliminarPartido(${m.id})" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">X</button>
+              <button onclick="eliminarPartido(${m.id})" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded font-bold" title="Eliminar partido">🗑️</button>
             </div>
           </div>
         `;
       });
 
-      // Lista de Usuarios
+      // 3. Usuarios
       const uContainer = document.getElementById('adminUsersList');
       uContainer.innerHTML = '';
-      if (Object.keys(state.users).length === 0) uContainer.innerHTML = '<p class="text-gray-500">Aún no hay usuarios dados de alta.</p>';
+      if (Object.keys(state.users).length === 0) uContainer.innerHTML = '<p class="text-gray-500">Sin usuarios registrados.</p>';
 
       Object.entries(state.users).forEach(([u, d]) => {
         uContainer.innerHTML += `
