@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v13.0 ⚽</title>
+  <title>Prode Mojarrero v13.1 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -67,7 +67,7 @@
     </div>
   </header>
 
-  <!-- TABS DE NAVEGACIÓN -->
+  <!-- TABS -->
   <nav class="fixed bottom-0 left-0 right-0 bg-black border-t border-[#39FF14]/30 flex justify-around p-2 z-50 text-xs">
     <button onclick="switchTab('pronosticos')" class="flex flex-col items-center text-[#39FF14]">
       <span>⚽</span><span>Pronósticos</span>
@@ -106,9 +106,9 @@
     <section id="tab-pronosticos" class="tab-content hidden">
       <h2 class="text-md font-bold neon-text mb-1">Tus Pronósticos</h2>
       <p class="text-[11px] text-gray-400 mb-3">Ingresá tus resultados y presioná el botón para guardarlos en la nube.</p>
-      
+
       <div id="matchesList" class="space-y-4"></div>
-      
+
       <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider shadow-lg">💾 Guardar Mis Pronósticos</button>
     </section>
 
@@ -141,7 +141,7 @@
     <!-- SECCIÓN 4: ADMIN -->
     <section id="tab-admin" class="tab-content hidden">
       <h2 class="text-md font-bold text-red-500 mb-3">Panel de Administración</h2>
-      
+
       <div id="adminAuth" class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
         <input type="password" id="adminPassInput" placeholder="Contraseña de Admin" class="w-full bg-black border border-gray-700 rounded p-2 text-white">
         <button onclick="checkAdmin()" class="w-full py-2 bg-red-600 text-white rounded font-bold">Ingresar como Admin</button>
@@ -188,7 +188,7 @@
 
         <!-- 4. GESTIÓN DE JUGADORES -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">4. Modificar PINs / Usuarios</h3>
+          <h3 class="text-sm font-bold neon-text">4. Modificar PINs / Usuarios Registrados</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
 
@@ -218,7 +218,6 @@
       teams: []
     };
 
-    // Escuchar cambios en tiempo real desde Firestore
     function listenToFirebase() {
       db.collection('prode_data').doc('state').onSnapshot((doc) => {
         if (doc.exists) {
@@ -289,7 +288,7 @@
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
     }
 
-    // LOGIN
+    // REGISTRO Y LOGIN SINCRONIZADOS
     function handleLogin() {
       const name = document.getElementById('usernameInput').value.trim();
       const pin = document.getElementById('pinInput').value.trim();
@@ -308,19 +307,24 @@
           return;
         }
       } else {
+        // Se crea el usuario en la estructura general
         state.users[name] = { pin: pin, pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
       }
 
       state.currentUser = name;
       localStorage.setItem('pm_session_user', name);
-      saveState();
-      err.classList.add('hidden');
 
-      showLoggedInUser();
-      switchTab('pronosticos');
+      // GUARDA INMEDIATAMENTE EN FIREBASE
+      saveState().then(() => {
+        err.classList.add('hidden');
+        showLoggedInUser();
+        switchTab('pronosticos');
+      }).catch((e) => {
+        err.innerText = "Error de conexión con la base de datos.";
+        err.classList.remove('hidden');
+      });
     }
 
-    // TABS
     function switchTab(tabId) {
       if (!state.currentUser && tabId !== 'admin') {
         document.getElementById('loginSection').classList.remove('hidden');
@@ -335,7 +339,6 @@
       if (tabId === 'equipos') renderEquipos();
     }
 
-    // PRONÓSTICOS CON ESTADO GUARDADO VISIBLE
     function renderPronosticos() {
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
@@ -422,15 +425,13 @@
       }
 
       saveState().then(() => {
-        alert("¡Pronósticos guardados correctamente en la nube!");
+        alert("¡Pronósticos guardados correctamente!");
         renderPronosticos();
       }).catch(err => {
-        alert("Error al guardar en la nube. Verificá tu conexión.");
-        console.error(err);
+        alert("Error al guardar en la nube.");
       });
     }
 
-    // POSICIONES
     function calcularPuntos() {
       Object.keys(state.users).forEach(u => {
         let pts = 0, ex = 0, te = 0;
@@ -475,7 +476,6 @@
       });
     }
 
-    // EQUIPOS
     function renderEquipos() {
       const container = document.getElementById('teamsList');
       container.innerHTML = '';
@@ -495,7 +495,6 @@
       });
     }
 
-    // ADMIN
     function checkAdmin() {
       if (document.getElementById('adminPassInput').value === 'admin123') {
         document.getElementById('adminAuth').classList.add('hidden');
@@ -631,7 +630,7 @@
         `;
       });
 
-      // 2. Partidos y Resultados
+      // 2. Partidos
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
       state.matches.forEach(m => {
@@ -655,20 +654,25 @@
       // 3. Usuarios
       const uContainer = document.getElementById('adminUsersList');
       uContainer.innerHTML = '';
-      Object.entries(state.users).forEach(([u, d]) => {
-        uContainer.innerHTML += `
-          <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
-            <div>
-              <span class="font-bold text-white">${u}</span>
-              <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
+      const usersList = Object.entries(state.users);
+      if (usersList.length === 0) {
+        uContainer.innerHTML = '<p class="text-gray-500 text-center py-2">No hay usuarios registrados.</p>';
+      } else {
+        usersList.forEach(([u, d]) => {
+          uContainer.innerHTML += `
+            <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
+              <div>
+                <span class="font-bold text-white">${u}</span>
+                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
+              </div>
+              <div class="space-x-1">
+                <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
+                <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
+              </div>
             </div>
-            <div class="space-x-1">
-              <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
-              <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
-            </div>
-          </div>
-        `;
-      });
+          `;
+        });
+      }
     }
 
     function guardarResultado(id) {
