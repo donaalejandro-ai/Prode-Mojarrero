@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v14.4 ⚽</title>
+  <title>Prode Mojarrero v15.0 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -131,9 +131,9 @@
       <h2 class="text-md font-bold neon-text mb-1">Tus Pronósticos</h2>
       <p class="text-[11px] text-gray-400 mb-3">Ingresá tus resultados y presioná el botón para guardarlos en la nube.</p>
 
-      <div id="matchesList" class="space-y-4"></div>
+      <div id="matchesList" class="space-y-6"></div>
 
-      <button onclick="guardarPronosticos()" class="w-full mt-4 py-3 rounded neon-btn uppercase font-bold tracking-wider shadow-lg">💾 Guardar Mis Pronósticos</button>
+      <button onclick="guardarPronosticos()" class="w-full mt-6 py-3 rounded neon-btn uppercase font-bold tracking-wider shadow-lg sticky bottom-16 z-40">💾 Guardar Mis Pronósticos</button>
     </section>
 
     <!-- SECCIÓN 2: POSICIONES Y DETALLE -->
@@ -189,6 +189,10 @@
         <!-- 2. ARMAR PARTIDOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
           <h3 class="text-sm font-bold neon-text">2. Armar Partidos</h3>
+          <div>
+            <label class="text-[10px] text-gray-400">Número de Fecha / Jornada</label>
+            <input type="number" id="matchRound" min="1" value="1" placeholder="Ej: 1" class="w-full bg-black border border-gray-700 rounded p-2 text-xs text-white">
+          </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-[10px] text-gray-400">Local</label>
@@ -208,9 +212,9 @@
 
         <!-- 3. GESTIONAR PARTIDOS Y RESULTADOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
-          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Reprogramar Fechas</h3>
-          <p class="text-[10px] text-gray-400">Podés cambiar la fecha si se reprograma por lluvia. No afecta los pronósticos existentes.</p>
-          <div id="adminMatches" class="space-y-4"></div>
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Modificar Fechas</h3>
+          <p class="text-[10px] text-gray-400">Podés cambiar el número de fecha o reprogramar horarios por lluvia.</p>
+          <div id="adminMatches" class="space-y-6"></div>
         </div>
 
         <!-- 4. GESTIÓN DE JUGADORES -->
@@ -252,7 +256,10 @@
         if (doc.exists) {
           const data = doc.data();
           state.users = data.users || {};
-          state.matches = data.matches || [];
+          state.matches = (data.matches || []).map(m => ({
+            ...m,
+            fechaNum: m.fechaNum || 1
+          }));
           state.teams = data.teams || [];
 
           if (state.currentUser && !state.users[state.currentUser]) {
@@ -434,6 +441,16 @@
       if (tabId === 'equipos') renderEquipos();
     }
 
+    function groupMatchesByRound(matches) {
+      const groups = {};
+      matches.forEach(m => {
+        const round = m.fechaNum || 1;
+        if (!groups[round]) groups[round] = [];
+        groups[round].push(m);
+      });
+      return groups;
+    }
+
     function renderPronosticos() {
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
@@ -442,43 +459,58 @@
         return;
       }
       const now = new Date();
+      const grouped = groupMatchesByRound(state.matches);
+      const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
 
-      state.matches.forEach(m => {
-        const matchTime = new Date(m.fechaHora);
-        const isLocked = now >= matchTime;
-        const userPreds = (state.currentUser && state.users[state.currentUser]?.pronosticos) ? state.users[state.currentUser].pronosticos[m.id] : null;
-
-        const gl = (userPreds && userPreds.l !== undefined && userPreds.l !== null) ? userPreds.l : '';
-        const gv = (userPreds && userPreds.v !== undefined && userPreds.v !== null) ? userPreds.v : '';
-        const hasSaved = (gl !== '' && gv !== '');
-
-        const hasRealScore = (m.golesL !== null && m.golesV !== null);
-        const realScoreHTML = (isLocked && hasRealScore) 
-          ? `<div class="text-[10px] text-[#39FF14] text-center font-bold mt-2">Resultado real: ${m.golesL} - ${m.golesV}</div>` 
-          : (isLocked ? `<div class="text-[10px] text-gray-500 text-center mt-2">Esperando resultado final...</div>` : '');
-
-        const statusBadge = hasSaved 
-          ? `<span class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded text-[9px] font-bold">✓ Guardado (${gl} - ${gv})</span>`
-          : `<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[9px]">Sin pronóstico</span>`;
-
-        container.innerHTML += `
-          <div class="bg-[#111] p-3 rounded-lg border ${hasSaved ? 'border-[#39FF14]/40' : 'border-gray-800'}">
-            <div class="flex items-center justify-between text-[10px] text-gray-400 mb-2">
-              <span>📅 ${m.fechaHora ? m.fechaHora.replace('T', ' ') : 'Sin fecha'} hs ${isLocked ? '<strong class="text-red-500">(CERRADO)</strong>' : ''}</span>
-              ${statusBadge}
+      rounds.forEach(round => {
+        let roundHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center space-x-2 border-b border-[#39FF14]/40 pb-1">
+              <span class="text-xs font-black uppercase text-black bg-[#39FF14] px-2 py-0.5 rounded">Fecha ${round}</span>
             </div>
-            <div class="flex items-center justify-between">
-              <span class="w-1/3 text-right font-bold text-xs">${m.local}</span>
-              <div class="flex items-center space-x-1">
-                <input type="number" id="pred_l_${m.id}" value="${gl}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
-                <span class="text-xs text-gray-500">-</span>
-                <input type="number" id="pred_v_${m.id}" value="${gv}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
-              </div>
-              <span class="w-1/3 text-left font-bold text-xs">${m.visitante}</span>
-            </div>
-            ${realScoreHTML}
-          </div>
+            <div class="space-y-3">
         `;
+
+        grouped[round].forEach(m => {
+          const matchTime = new Date(m.fechaHora);
+          const isLocked = now >= matchTime;
+          const userPreds = (state.currentUser && state.users[state.currentUser]?.pronosticos) ? state.users[state.currentUser].pronosticos[m.id] : null;
+
+          const gl = (userPreds && userPreds.l !== undefined && userPreds.l !== null) ? userPreds.l : '';
+          const gv = (userPreds && userPreds.v !== undefined && userPreds.v !== null) ? userPreds.v : '';
+          const hasSaved = (gl !== '' && gv !== '');
+
+          const hasRealScore = (m.golesL !== null && m.golesV !== null);
+          const realScoreHTML = (isLocked && hasRealScore) 
+            ? `<div class="text-[10px] text-[#39FF14] text-center font-bold mt-2">Resultado real: ${m.golesL} - ${m.golesV}</div>` 
+            : (isLocked ? `<div class="text-[10px] text-gray-500 text-center mt-2">Esperando resultado final...</div>` : '');
+
+          const statusBadge = hasSaved 
+            ? `<span class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded text-[9px] font-bold">✓ Guardado (${gl} - ${gv})</span>`
+            : `<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[9px]">Sin pronóstico</span>`;
+
+          roundHTML += `
+            <div class="bg-[#111] p-3 rounded-lg border ${hasSaved ? 'border-[#39FF14]/40' : 'border-gray-800'}">
+              <div class="flex items-center justify-between text-[10px] text-gray-400 mb-2">
+                <span>📅 ${m.fechaHora ? m.fechaHora.replace('T', ' ') : 'Sin fecha'} hs ${isLocked ? '<strong class="text-red-500">(CERRADO)</strong>' : ''}</span>
+                ${statusBadge}
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="w-1/3 text-right font-bold text-xs">${m.local}</span>
+                <div class="flex items-center space-x-1">
+                  <input type="number" id="pred_l_${m.id}" value="${gl}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
+                  <span class="text-xs text-gray-500">-</span>
+                  <input type="number" id="pred_v_${m.id}" value="${gv}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
+                </div>
+                <span class="w-1/3 text-left font-bold text-xs">${m.visitante}</span>
+              </div>
+              ${realScoreHTML}
+            </div>
+          `;
+        });
+
+        roundHTML += `</div></div>`;
+        container.innerHTML += roundHTML;
       });
     }
 
@@ -591,45 +623,58 @@
           if (state.matches.length === 0) {
             detailHTML += `<p class="text-[10px] text-gray-500">No hay partidos registrados.</p>`;
           } else {
-            detailHTML += `<div class="space-y-1.5">`;
-            state.matches.forEach(m => {
-              const matchTime = new Date(m.fechaHora);
-              const isLocked = now >= matchTime;
-              const isOwn = (state.currentUser === nombre);
-              const pred = (data.pronosticos) ? data.pronosticos[m.id] : null;
+            const grouped = groupMatchesByRound(state.matches);
+            const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
 
-              let statusText = '';
-              let badgeColor = 'bg-gray-800 text-gray-400';
+            detailHTML += `<div class="space-y-3">`;
+            rounds.forEach(round => {
+              detailHTML += `
+                <div>
+                  <div class="text-[10px] font-bold text-[#39FF14] mb-1">Fecha ${round}</div>
+                  <div class="space-y-1">
+              `;
 
-              if (!pred || pred.l === undefined || pred.v === undefined) {
-                statusText = 'Sin jugar';
-              } else if (!isLocked && !isOwn) {
-                statusText = '🔒 Oculto (partido no empezó)';
-                badgeColor = 'bg-amber-900/30 text-amber-400 border border-amber-700/40';
-              } else {
-                statusText = `${pred.l} - ${pred.v}`;
-                badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
+              grouped[round].forEach(m => {
+                const matchTime = new Date(m.fechaHora);
+                const isLocked = now >= matchTime;
+                const isOwn = (state.currentUser === nombre);
+                const pred = (data.pronosticos) ? data.pronosticos[m.id] : null;
 
-                if (m.golesL !== null && m.golesV !== null) {
-                  if (pred.l === m.golesL && pred.v === m.golesV) {
-                    statusText += ' (+3 pts Exacto)';
-                    badgeColor = 'bg-green-600 text-white font-bold';
-                  } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesL === m.golesV)) {
-                    statusText += ' (+1 pt Tendencia)';
-                    badgeColor = 'bg-yellow-600 text-white font-bold';
-                  } else {
-                    statusText += ' (0 pts)';
-                    badgeColor = 'bg-gray-800 text-gray-400';
+                let statusText = '';
+                let badgeColor = 'bg-gray-800 text-gray-400';
+
+                if (!pred || pred.l === undefined || pred.v === undefined) {
+                  statusText = 'Sin jugar';
+                } else if (!isLocked && !isOwn) {
+                  statusText = '🔒 Oculto (partido no empezó)';
+                  badgeColor = 'bg-amber-900/30 text-amber-400 border border-amber-700/40';
+                } else {
+                  statusText = `${pred.l} - ${pred.v}`;
+                  badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
+
+                  if (m.golesL !== null && m.golesV !== null) {
+                    if (pred.l === m.golesL && pred.v === m.golesV) {
+                      statusText += ' (+3 pts Exacto)';
+                      badgeColor = 'bg-green-600 text-white font-bold';
+                    } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesL === m.golesV)) {
+                      statusText += ' (+1 pt Tendencia)';
+                      badgeColor = 'bg-yellow-600 text-white font-bold';
+                    } else {
+                      statusText += ' (0 pts)';
+                      badgeColor = 'bg-gray-800 text-gray-400';
+                    }
                   }
                 }
-              }
 
-              detailHTML += `
-                <div class="flex justify-between items-center text-[11px] bg-[#111] p-1.5 rounded border border-gray-800">
-                  <span class="font-semibold text-gray-300">${m.local} vs ${m.visitante}</span>
-                  <span class="px-2 py-0.5 rounded text-[9px] ${badgeColor}">${statusText}</span>
-                </div>
-              `;
+                detailHTML += `
+                  <div class="flex justify-between items-center text-[11px] bg-[#111] p-1.5 rounded border border-gray-800">
+                    <span class="font-semibold text-gray-300">${m.local} vs ${m.visitante}</span>
+                    <span class="px-2 py-0.5 rounded text-[9px] ${badgeColor}">${statusText}</span>
+                  </div>
+                `;
+              });
+
+              detailHTML += `</div></div>`;
             });
             detailHTML += `</div>`;
           }
@@ -736,15 +781,18 @@
     }
 
     function crearPartido() {
+      const roundVal = document.getElementById('matchRound').value;
       const local = document.getElementById('selectLocal').value;
       const visitante = document.getElementById('selectVisitante').value;
       const fechaHora = document.getElementById('matchDateTime').value;
 
+      if (!roundVal || parseInt(roundVal) < 1) return alert("Ingresá un número de fecha válido.");
       if (!local || !visitante || !fechaHora) return alert("Completá local, visitante y la fecha/hora.");
       if (local === visitante) return alert("El local y visitante no pueden ser el mismo equipo.");
 
       state.matches.push({
         id: Date.now(),
+        fechaNum: parseInt(roundVal),
         local: local,
         visitante: visitante,
         fechaHora: fechaHora,
@@ -754,18 +802,25 @@
 
       saveState();
       renderAdmin();
-      alert("¡Partido programado!");
+      alert(`¡Partido programado para la Fecha ${roundVal}!`);
     }
 
-    function editarFechaPartido(id) {
-      const newDateVal = document.getElementById(`edit_date_${id}`).value;
-      if (!newDateVal) return alert("Seleccioná una fecha y hora válida.");
+    function editarPartidoAdmin(id) {
+      const roundInput = document.getElementById(`edit_round_${id}`);
+      const dateInput = document.getElementById(`edit_date_${id}`);
+
+      const newRound = parseInt(roundInput.value);
+      const newDate = dateInput.value;
+
+      if (isNaN(newRound) || newRound < 1) return alert("Ingresá un número de fecha válido.");
+      if (!newDate) return alert("Seleccioná una fecha y hora válida.");
 
       const match = state.matches.find(m => m.id === id);
       if (match) {
-        match.fechaHora = newDateVal;
+        match.fechaNum = newRound;
+        match.fechaHora = newDate;
         saveState().then(() => {
-          alert(`¡Fecha reprogramada para ${match.local} vs ${match.visitante}!`);
+          alert(`¡Datos actualizados para ${match.local} vs ${match.visitante}!`);
           renderAdmin();
         });
       }
@@ -811,33 +866,59 @@
       // 2. Partidos
       const mContainer = document.getElementById('adminMatches');
       mContainer.innerHTML = '';
-      state.matches.forEach(m => {
-        mContainer.innerHTML += `
-          <div class="bg-black p-3 rounded border border-gray-800 space-y-2 text-xs">
-            <div class="flex justify-between items-center border-b border-gray-900 pb-2">
-              <span class="font-bold text-white">${m.local} vs ${m.visitante}</span>
-              <button onclick="eliminarPartido(${m.id})" class="bg-red-900/60 text-red-200 px-2 py-0.5 text-[10px] rounded font-bold">🗑️ Borrar</button>
-            </div>
-            
-            <!-- REPROGRAMAR FECHA -->
-            <div class="flex items-center space-x-1">
-              <input type="datetime-local" id="edit_date_${m.id}" value="${m.fechaHora || ''}" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 flex-1">
-              <button onclick="editarFechaPartido(${m.id})" class="bg-amber-600/80 hover:bg-amber-600 text-white text-[10px] px-2 py-1 rounded font-bold">⌚ Cambiar Fecha</button>
-            </div>
+      
+      if (state.matches.length === 0) {
+        mContainer.innerHTML = '<p class="text-gray-500 text-center text-xs py-2">No hay partidos creados.</p>';
+      } else {
+        const grouped = groupMatchesByRound(state.matches);
+        const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
 
-            <!-- CARGAR RESULTADO REAL -->
-            <div class="flex items-center justify-between pt-1">
-              <span class="text-[10px] text-gray-400">Resultado final:</span>
-              <div class="flex items-center space-x-1">
-                <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" placeholder="L" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
-                <span>-</span>
-                <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" placeholder="V" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
-                <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">Guardar Goles</button>
+        rounds.forEach(round => {
+          let roundBlock = `
+            <div class="space-y-2">
+              <div class="text-xs font-bold text-[#39FF14] border-b border-[#39FF14]/30 pb-1">Fecha ${round}</div>
+              <div class="space-y-3">
+          `;
+
+          grouped[round].forEach(m => {
+            roundBlock += `
+              <div class="bg-black p-3 rounded border border-gray-800 space-y-2 text-xs">
+                <div class="flex justify-between items-center border-b border-gray-900 pb-2">
+                  <span class="font-bold text-white">${m.local} vs ${m.visitante}</span>
+                  <button onclick="eliminarPartido(${m.id})" class="bg-red-900/60 text-red-200 px-2 py-0.5 text-[10px] rounded font-bold">🗑️ Borrar</button>
+                </div>
+                
+                <!-- EDITAR FECHA Y JORNADA -->
+                <div class="grid grid-cols-3 gap-1 items-center">
+                  <div class="col-span-1">
+                    <label class="text-[9px] text-gray-500 block">N° Fecha</label>
+                    <input type="number" id="edit_round_${m.id}" value="${m.fechaNum || 1}" min="1" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full text-center">
+                  </div>
+                  <div class="col-span-2">
+                    <label class="text-[9px] text-gray-500 block">Horario</label>
+                    <input type="datetime-local" id="edit_date_${m.id}" value="${m.fechaHora || ''}" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full">
+                  </div>
+                </div>
+                <button onclick="editarPartidoAdmin(${m.id})" class="w-full bg-amber-600/80 hover:bg-amber-600 text-white text-[10px] py-1 rounded font-bold">⌚ Actualizar Fecha/Hora</button>
+
+                <!-- CARGAR RESULTADO REAL -->
+                <div class="flex items-center justify-between pt-1 border-t border-gray-900">
+                  <span class="text-[10px] text-gray-400">Resultado final:</span>
+                  <div class="flex items-center space-x-1">
+                    <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" placeholder="L" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                    <span>-</span>
+                    <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" placeholder="V" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                    <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">Guardar Goles</button>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        `;
-      });
+            `;
+          });
+
+          roundBlock += `</div></div>`;
+          mContainer.innerHTML += roundBlock;
+        });
+      }
 
       // 3. Usuarios
       const uContainer = document.getElementById('adminUsersList');
