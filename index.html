@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v14.0 ⚽</title>
+  <title>Prode Mojarrero v14.1 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -229,6 +229,11 @@
           state.users = data.users || {};
           state.matches = data.matches || [];
           state.teams = data.teams || [];
+
+          // VERIFICACIÓN DE SESIÓN: Si el usuario activo fue borrado en la BD, cerrar sesión.
+          if (state.currentUser && !state.users[state.currentUser]) {
+            logout();
+          }
         } else {
           state.teams = [
             { nombre: 'Las Mojarras F.C.', integrantes: ['Alejandro', 'Lucas', 'Nico'] },
@@ -490,7 +495,6 @@
           </tr>
         `;
 
-        // Si está desplegado, renderizar la tarjeta con sus partidos
         if (isSelected) {
           let detailHTML = `<td colspan="5" class="p-3 bg-black/80 border-b border-[#39FF14]/30">`;
           detailHTML += `<div class="text-[11px] font-bold text-[#39FF14] mb-2 uppercase tracking-wider">Pronósticos de ${nombre}:</div>`;
@@ -517,7 +521,6 @@
                 statusText = `${pred.l} - ${pred.v}`;
                 badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
 
-                // Si ya hay resultado real, marcar acierto
                 if (m.golesL !== null && m.golesV !== null) {
                   if (pred.l === m.golesL && pred.v === m.golesV) {
                     statusText += ' (+3 pts Exacto)';
@@ -542,7 +545,7 @@
             detailHTML += `</div>`;
           }
 
-          detailHTML += `</td>`;
+          detailHTML += `td>`;
           tbody.innerHTML += `<tr class="bg-black/40">${detailHTML}</tr>`;
         }
       });
