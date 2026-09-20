@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v14.1 ⚽</title>
+  <title>Prode Mojarrero v14.3 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -67,7 +67,7 @@
     </div>
   </header>
 
-  <!-- TABS DE NAVEGACIÓN -->
+  <!-- TABS DE NAVEGACIÓN PRINCIPAL -->
   <nav class="fixed bottom-0 left-0 right-0 bg-black border-t border-[#39FF14]/30 flex justify-around p-2 z-50 text-xs">
     <button onclick="switchTab('pronosticos')" class="flex flex-col items-center text-[#39FF14]">
       <span>⚽</span><span>Pronósticos</span>
@@ -85,21 +85,47 @@
 
   <main class="p-4 max-w-md mx-auto">
 
-    <!-- LOGIN -->
+    <!-- LOGIN Y REGISTRO CON PESTAÑAS SEPARADAS (OPCIÓN 2) -->
     <section id="loginSection" class="bg-[#111] p-6 rounded-xl border border-[#39FF14]/40 my-6">
-      <h2 class="text-lg font-bold neon-text mb-4 text-center">Ingreso de Jugador</h2>
-      <div class="space-y-4">
+      
+      <!-- BOTONES DE CONMUTACIÓN DE SOLAPAS -->
+      <div class="flex border-b border-gray-800 mb-6">
+        <button id="tabBtnLogin" onclick="switchAuthTab('login')" class="w-1/2 py-2 text-center font-bold text-sm text-[#39FF14] border-b-2 border-[#39FF14]">
+          Ingresar
+        </button>
+        <button id="tabBtnRegister" onclick="switchAuthTab('register')" class="w-1/2 py-2 text-center font-bold text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-300">
+          Registrarse
+        </button>
+      </div>
+
+      <!-- FORMULARIO 1: INGRESAR -->
+      <div id="authLoginForm" class="space-y-4">
         <div>
-          <label class="block text-xs uppercase mb-1 text-gray-300">Nombre / Apodo</label>
-          <input type="text" id="usernameInput" placeholder="Tu nombre" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
+          <label class="block text-xs uppercase mb-1 text-gray-300">Tu Usuario / Apodo</label>
+          <input type="text" id="loginUsernameInput" placeholder="Ej: Alejandro" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none text-sm">
         </div>
         <div>
           <label class="block text-xs uppercase mb-1 text-gray-300">PIN (4 dígitos)</label>
-          <input type="password" id="pinInput" maxlength="4" placeholder="••••" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none">
+          <input type="password" id="loginPinInput" maxlength="4" placeholder="••••" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none text-sm">
         </div>
-        <button id="btnLogin" type="button" class="w-full py-2 rounded neon-btn uppercase tracking-wider">Entrar / Registrarse</button>
+        <button type="button" onclick="handleLogin()" class="w-full py-2.5 rounded neon-btn uppercase tracking-wider text-sm mt-2">Entrar</button>
       </div>
-      <p id="loginError" class="text-red-500 text-xs mt-2 text-center hidden"></p>
+
+      <!-- FORMULARIO 2: REGISTRARSE -->
+      <div id="authRegisterForm" class="space-y-4 hidden">
+        <div>
+          <label class="block text-xs uppercase mb-1 text-gray-300">Nuevo Usuario / Apodo</label>
+          <input type="text" id="registerUsernameInput" placeholder="Ej: Lucas" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none text-sm">
+        </div>
+        <div>
+          <label class="block text-xs uppercase mb-1 text-gray-300">Creá tu PIN (4 dígitos)</label>
+          <input type="password" id="registerPinInput" maxlength="4" placeholder="••••" class="w-full bg-black border border-gray-700 rounded p-2 text-white focus:border-[#39FF14] outline-none text-sm">
+        </div>
+        <button type="button" onclick="handleRegister()" class="w-full py-2.5 rounded bg-green-600 text-white font-bold uppercase tracking-wider text-sm hover:bg-green-500 mt-2">Crear Cuenta e Ingresar</button>
+      </div>
+
+      <!-- MENSAJE DE ERROR O ADVERTENCIA -->
+      <p id="authError" class="text-red-400 text-xs mt-4 text-center font-semibold bg-red-950/40 p-2 rounded border border-red-800/50 hidden"></p>
     </section>
 
     <!-- SECCIÓN 1: PRONÓSTICOS -->
@@ -230,7 +256,6 @@
           state.matches = data.matches || [];
           state.teams = data.teams || [];
 
-          // VERIFICACIÓN DE SESIÓN: Si el usuario activo fue borrado en la BD, cerrar sesión.
           if (state.currentUser && !state.users[state.currentUser]) {
             logout();
           }
@@ -260,14 +285,113 @@
 
     document.addEventListener('DOMContentLoaded', function() {
       listenToFirebase();
-      const btn = document.getElementById('btnLogin');
-      if (btn) btn.addEventListener('click', handleLogin);
 
       if (state.currentUser) {
         showLoggedInUser();
         switchTab('pronosticos');
       }
     });
+
+    function switchAuthTab(mode) {
+      const loginForm = document.getElementById('authLoginForm');
+      const registerForm = document.getElementById('authRegisterForm');
+      const tabBtnLogin = document.getElementById('tabBtnLogin');
+      const tabBtnRegister = document.getElementById('tabBtnRegister');
+      const err = document.getElementById('authError');
+
+      err.classList.add('hidden');
+
+      if (mode === 'login') {
+        loginForm.classList.remove('hidden');
+        registerForm.classList.add('hidden');
+        tabBtnLogin.className = "w-1/2 py-2 text-center font-bold text-sm text-[#39FF14] border-b-2 border-[#39FF14]";
+        tabBtnRegister.className = "w-1/2 py-2 text-center font-bold text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-300";
+      } else {
+        loginForm.classList.add('hidden');
+        registerForm.classList.remove('hidden');
+        tabBtnRegister.className = "w-1/2 py-2 text-center font-bold text-sm text-[#39FF14] border-b-2 border-[#39FF14]";
+        tabBtnLogin.className = "w-1/2 py-2 text-center font-bold text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-300";
+      }
+    }
+
+    function handleLogin() {
+      const nameInput = document.getElementById('loginUsernameInput').value.trim();
+      const pin = document.getElementById('loginPinInput').value.trim();
+      const err = document.getElementById('authError');
+
+      if (!nameInput) {
+        err.innerText = "Escribí tu usuario para ingresar.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      if (pin.length !== 4) {
+        err.innerText = "Ingresá tu PIN de 4 dígitos.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      // Buscar coincidencia exacta (o insensible a mayúsculas/minúsculas)
+      const existingUserKey = Object.keys(state.users).find(u => u.toLowerCase() === nameInput.toLowerCase());
+
+      if (!existingUserKey) {
+        err.innerText = `El usuario "${nameInput}" no existe. Si sos nuevo, tocá en la pestaña "Registrarse".`;
+        err.classList.remove('hidden');
+        return;
+      }
+
+      if (state.users[existingUserKey].pin !== pin) {
+        err.innerText = "PIN incorrecto.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      state.currentUser = existingUserKey;
+      localStorage.setItem('pm_session_user', existingUserKey);
+      err.classList.add('hidden');
+      showLoggedInUser();
+      switchTab('pronosticos');
+    }
+
+    function handleRegister() {
+      const name = document.getElementById('registerUsernameInput').value.trim();
+      const pin = document.getElementById('registerPinInput').value.trim();
+      const err = document.getElementById('authError');
+
+      if (!name) {
+        err.innerText = "Escribí tu nombre o apodo.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      if (pin.length !== 4) {
+        err.innerText = "El PIN debe ser de 4 dígitos.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      // Validar si el usuario ya existe
+      const existingName = Object.keys(state.users).find(u => u.toLowerCase() === name.toLowerCase());
+      if (existingName) {
+        err.innerText = `El usuario "${existingName}" ya existe. Andá a la pestaña "Ingresar" para entrar con tu PIN.`;
+        err.classList.remove('hidden');
+        return;
+      }
+
+      // Crear nuevo usuario
+      state.users[name] = { pin: pin, pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
+      state.currentUser = name;
+      localStorage.setItem('pm_session_user', name);
+
+      saveState().then(() => {
+        err.classList.add('hidden');
+        showLoggedInUser();
+        switchTab('pronosticos');
+      }).catch(() => {
+        err.innerText = "Error de conexión al registrar usuario.";
+        err.classList.remove('hidden');
+      });
+    }
 
     function refreshCurrentTab() {
       const activeTab = document.querySelector('.tab-content:not(.hidden)');
@@ -292,43 +416,12 @@
       document.getElementById('loginSection').classList.remove('hidden');
       document.getElementById('userInfo').innerText = '';
       document.getElementById('btnLogout').classList.add('hidden');
-      document.getElementById('usernameInput').value = '';
-      document.getElementById('pinInput').value = '';
+      document.getElementById('loginUsernameInput').value = '';
+      document.getElementById('loginPinInput').value = '';
+      document.getElementById('registerUsernameInput').value = '';
+      document.getElementById('registerPinInput').value = '';
+      switchAuthTab('login');
       document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    }
-
-    function handleLogin() {
-      const name = document.getElementById('usernameInput').value.trim();
-      const pin = document.getElementById('pinInput').value.trim();
-      const err = document.getElementById('loginError');
-
-      if (!name || pin.length !== 4) {
-        err.innerText = "Ingresá un nombre y un PIN de 4 dígitos.";
-        err.classList.remove('hidden');
-        return;
-      }
-
-      if (state.users[name]) {
-        if (state.users[name].pin !== pin) {
-          err.innerText = "PIN incorrecto para este jugador.";
-          err.classList.remove('hidden');
-          return;
-        }
-      } else {
-        state.users[name] = { pin: pin, pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
-      }
-
-      state.currentUser = name;
-      localStorage.setItem('pm_session_user', name);
-
-      saveState().then(() => {
-        err.classList.add('hidden');
-        showLoggedInUser();
-        switchTab('pronosticos');
-      }).catch((e) => {
-        err.innerText = "Error de conexión con la base de datos.";
-        err.classList.remove('hidden');
-      });
     }
 
     function switchTab(tabId) {
@@ -545,7 +638,7 @@
             detailHTML += `</div>`;
           }
 
-          detailHTML += `td>`;
+          detailHTML += `</td>`;
           tbody.innerHTML += `<tr class="bg-black/40">${detailHTML}</tr>`;
         }
       });
