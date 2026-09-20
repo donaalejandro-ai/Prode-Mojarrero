@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Prode Mojarrero v14.3 ⚽</title>
+  <title>Prode Mojarrero v14.4 ⚽</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- SDKs de Firebase -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -85,10 +85,9 @@
 
   <main class="p-4 max-w-md mx-auto">
 
-    <!-- LOGIN Y REGISTRO CON PESTAÑAS SEPARADAS (OPCIÓN 2) -->
+    <!-- LOGIN Y REGISTRO -->
     <section id="loginSection" class="bg-[#111] p-6 rounded-xl border border-[#39FF14]/40 my-6">
       
-      <!-- BOTONES DE CONMUTACIÓN DE SOLAPAS -->
       <div class="flex border-b border-gray-800 mb-6">
         <button id="tabBtnLogin" onclick="switchAuthTab('login')" class="w-1/2 py-2 text-center font-bold text-sm text-[#39FF14] border-b-2 border-[#39FF14]">
           Ingresar
@@ -124,7 +123,6 @@
         <button type="button" onclick="handleRegister()" class="w-full py-2.5 rounded bg-green-600 text-white font-bold uppercase tracking-wider text-sm hover:bg-green-500 mt-2">Crear Cuenta e Ingresar</button>
       </div>
 
-      <!-- MENSAJE DE ERROR O ADVERTENCIA -->
       <p id="authError" class="text-red-400 text-xs mt-4 text-center font-semibold bg-red-950/40 p-2 rounded border border-red-800/50 hidden"></p>
     </section>
 
@@ -208,10 +206,11 @@
           <button onclick="crearPartido()" class="w-full py-2 bg-[#39FF14] text-black font-bold rounded text-xs">Agregar Partido</button>
         </div>
 
-        <!-- 3. RESULTADOS -->
-        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados</h3>
-          <div id="adminMatches" class="space-y-3"></div>
+        <!-- 3. GESTIONAR PARTIDOS Y RESULTADOS -->
+        <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Reprogramar Fechas</h3>
+          <p class="text-[10px] text-gray-400">Podés cambiar la fecha si se reprograma por lluvia. No afecta los pronósticos existentes.</p>
+          <div id="adminMatches" class="space-y-4"></div>
         </div>
 
         <!-- 4. GESTIÓN DE JUGADORES -->
@@ -331,7 +330,6 @@
         return;
       }
 
-      // Buscar coincidencia exacta (o insensible a mayúsculas/minúsculas)
       const existingUserKey = Object.keys(state.users).find(u => u.toLowerCase() === nameInput.toLowerCase());
 
       if (!existingUserKey) {
@@ -370,7 +368,6 @@
         return;
       }
 
-      // Validar si el usuario ya existe
       const existingName = Object.keys(state.users).find(u => u.toLowerCase() === name.toLowerCase());
       if (existingName) {
         err.innerText = `El usuario "${existingName}" ya existe. Andá a la pestaña "Ingresar" para entrar con tu PIN.`;
@@ -378,7 +375,6 @@
         return;
       }
 
-      // Crear nuevo usuario
       state.users[name] = { pin: pin, pronosticos: {}, exactos: 0, tendencias: 0, puntos: 0 };
       state.currentUser = name;
       localStorage.setItem('pm_session_user', name);
@@ -761,6 +757,20 @@
       alert("¡Partido programado!");
     }
 
+    function editarFechaPartido(id) {
+      const newDateVal = document.getElementById(`edit_date_${id}`).value;
+      if (!newDateVal) return alert("Seleccioná una fecha y hora válida.");
+
+      const match = state.matches.find(m => m.id === id);
+      if (match) {
+        match.fechaHora = newDateVal;
+        saveState().then(() => {
+          alert(`¡Fecha reprogramada para ${match.local} vs ${match.visitante}!`);
+          renderAdmin();
+        });
+      }
+    }
+
     function eliminarPartido(id) {
       if (confirm("¿Estás seguro de que querés borrar este partido?")) {
         state.matches = state.matches.filter(m => m.id !== id);
@@ -803,17 +813,27 @@
       mContainer.innerHTML = '';
       state.matches.forEach(m => {
         mContainer.innerHTML += `
-          <div class="text-xs flex items-center justify-between bg-black p-2 rounded border border-gray-900">
-            <div>
-              <span class="font-bold">${m.local} vs ${m.visitante}</span>
-              <div class="text-[9px] text-gray-500">${m.fechaHora ? m.fechaHora.replace('T', ' ') : ''} hs</div>
+          <div class="bg-black p-3 rounded border border-gray-800 space-y-2 text-xs">
+            <div class="flex justify-between items-center border-b border-gray-900 pb-2">
+              <span class="font-bold text-white">${m.local} vs ${m.visitante}</span>
+              <button onclick="eliminarPartido(${m.id})" class="bg-red-900/60 text-red-200 px-2 py-0.5 text-[10px] rounded font-bold">🗑️ Borrar</button>
             </div>
+            
+            <!-- REPROGRAMAR FECHA -->
             <div class="flex items-center space-x-1">
-              <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" class="w-8 text-center bg-[#222] text-white rounded">
-              <span>-</span>
-              <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" class="w-8 text-center bg-[#222] text-white rounded">
-              <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">OK</button>
-              <button onclick="eliminarPartido(${m.id})" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded font-bold">🗑️</button>
+              <input type="datetime-local" id="edit_date_${m.id}" value="${m.fechaHora || ''}" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 flex-1">
+              <button onclick="editarFechaPartido(${m.id})" class="bg-amber-600/80 hover:bg-amber-600 text-white text-[10px] px-2 py-1 rounded font-bold">⌚ Cambiar Fecha</button>
+            </div>
+
+            <!-- CARGAR RESULTADO REAL -->
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[10px] text-gray-400">Resultado final:</span>
+              <div class="flex items-center space-x-1">
+                <input type="number" id="real_l_${m.id}" value="${m.golesL !== null ? m.golesL : ''}" placeholder="L" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                <span>-</span>
+                <input type="number" id="real_v_${m.id}" value="${m.golesV !== null ? m.golesV : ''}" placeholder="V" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                <button onclick="guardarResultado(${m.id})" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">Guardar Goles</button>
+              </div>
             </div>
           </div>
         `;
