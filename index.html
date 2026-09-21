@@ -255,12 +255,20 @@
       db.collection('prode_data').doc('state').onSnapshot((doc) => {
         if (doc.exists) {
           const data = doc.data();
-          state.users = data.users || {};
-          state.matches = (data.matches || []).map(m => ({
-            ...m,
-            fechaNum: m.fechaNum || 1
-          }));
-          state.teams = data.teams || [];
+          
+          // PROTECCIÓN EN LECTURA: Solo sobrescribir variables locales si Firebase trae datos válidos
+          if (data.users && Object.keys(data.users).length > 0) {
+            state.users = data.users;
+          }
+          if (data.matches && data.matches.length > 0) {
+            state.matches = data.matches.map(m => ({
+              ...m,
+              fechaNum: m.fechaNum || 1
+            }));
+          }
+          if (data.teams && data.teams.length > 0) {
+            state.teams = data.teams;
+          }
 
           if (state.currentUser && !state.users[state.currentUser]) {
             logout();
@@ -282,11 +290,12 @@
     }
 
     function saveState() {
+      // PROTECCIÓN EN ESCRITURA: Uso de { merge: true } obligatorio para no pisar datos existentes
       return db.collection('prode_data').doc('state').set({
         users: state.users,
         matches: state.matches,
         teams: state.teams
-      });
+      }, { merge: true });
     }
 
     document.addEventListener('DOMContentLoaded', function() {
