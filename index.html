@@ -184,15 +184,16 @@
           <button onclick="crearPartido()" class="w-full py-2 bg-[#39FF14] text-black font-bold rounded text-xs">Agregar Partido</button>
         </div>
 
-        <!-- 3. RESULTADOS -->
+        <!-- 3. RESULTADOS Y REPROGRAMACIONES -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-3">
-          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados</h3>
+          <h3 class="text-sm font-bold neon-text">3. Cargar Resultados / Reprogramar Fechas</h3>
+          <p class="text-[10px] text-gray-400">Podés cambiar el número de fecha o reprogramar horarios por lluvia.</p>
           <div id="adminMatches" class="space-y-6"></div>
         </div>
 
         <!-- 4. JUGADORES REGISTRADOS -->
         <div class="bg-[#111] p-4 rounded-xl border border-gray-800 space-y-2">
-          <h3 class="text-sm font-bold neon-text">4. Usuarios Registrados</h3>
+          <h3 class="text-sm font-bold neon-text">4. Usuarios Registrados y PINs</h3>
           <div id="adminUsersList" class="space-y-2 text-xs"></div>
         </div>
       </div>
@@ -221,28 +222,24 @@
     let selectedPlayerDetail = null;
 
     function initRealtimeListeners() {
-      // 1. Escuchar Usuarios
       db.collection('users').onSnapshot(snapshot => {
         usersData = {};
         snapshot.forEach(doc => { usersData[doc.id] = doc.data(); });
         refreshCurrentTab();
       });
 
-      // 2. Escuchar Partidos
       db.collection('matches').onSnapshot(snapshot => {
         matchesData = [];
         snapshot.forEach(doc => { matchesData.push({ id: doc.id, ...doc.data() }); });
         refreshCurrentTab();
       });
 
-      // 3. Escuchar Equipos
       db.collection('teams').onSnapshot(snapshot => {
         teamsData = [];
         snapshot.forEach(doc => { teamsData.push({ id: doc.id, ...doc.data() }); });
         refreshCurrentTab();
       });
 
-      // 4. Escuchar Pronósticos
       db.collection('predictions').onSnapshot(snapshot => {
         predictionsData = {};
         snapshot.forEach(doc => { predictionsData[doc.id] = doc.data(); });
@@ -646,6 +643,14 @@
       document.getElementById('newTeamName').value = '';
     }
 
+    function editarNombreEquipo(id, nombreActual) {
+      const nuevo = prompt("Nuevo nombre para el equipo:", nombreActual);
+      if (nuevo && nuevo.trim() !== '') {
+        db.collection('teams').doc(id).update({ nombre: nuevo.trim() })
+          .then(() => alert("Nombre actualizado."));
+      }
+    }
+
     function eliminarEquipo(id) {
       if (confirm("¿Eliminar equipo?")) db.collection('teams').doc(id).delete();
     }
@@ -698,6 +703,26 @@
       }).then(() => alert("¡Partido creado!"));
     }
 
+    function editarPartidoAdmin(id) {
+      const roundInput = document.getElementById(`edit_round_${id}`);
+      const dateInput = document.getElementById(`edit_date_${id}`);
+
+      const newRound = parseInt(roundInput.value);
+      const newDate = dateInput.value;
+
+      if (isNaN(newRound) || newRound < 1) return alert("Ingresá un número de fecha válido.");
+      if (!newDate) return alert("Seleccioná una fecha y hora válida.");
+
+      db.collection('matches').doc(id).update({
+        fechaNum: newRound,
+        fechaHora: newDate
+      }).then(() => {
+        alert("¡Fecha y horario del partido actualizados!");
+      }).catch(err => {
+        alert("Error al actualizar el partido.");
+      });
+    }
+
     function eliminarPartido(id) {
       if (confirm("¿Borrar este partido?")) db.collection('matches').doc(id).delete();
     }
@@ -713,6 +738,16 @@
       }
     }
 
+    function resetPin(u) {
+      const newPin = prompt(`Nuevo PIN de 4 dígitos para ${u}:`);
+      if (newPin && newPin.trim().length === 4) {
+        db.collection('users').doc(u).update({ pin: newPin.trim() })
+          .then(() => alert(`PIN de ${u} actualizado con éxito.`));
+      } else if (newPin !== null) {
+        alert("El PIN debe tener exactamente 4 dígitos.");
+      }
+    }
+
     function renderAdmin() {
       // 1. Equipos e Integrantes
       const tContainer = document.getElementById('adminTeamsManager');
@@ -723,7 +758,10 @@
             <div class="bg-black p-3 rounded border border-gray-800 space-y-2">
               <div class="flex justify-between items-center">
                 <span class="font-bold text-[#39FF14]">${t.nombre}</span>
-                <button onclick="eliminarEquipo('${t.id}')" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">🗑️ Borrar</button>
+                <div class="space-x-1">
+                  <button onclick="editarNombreEquipo('${t.id}', '${t.nombre}')" class="bg-gray-800 text-white px-2 py-0.5 rounded text-[10px]">✏️ Editar</button>
+                  <button onclick="eliminarEquipo('${t.id}')" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">🗑️ Borrar</button>
+                </div>
               </div>
               <div class="flex flex-wrap gap-1 mt-1">
                 ${t.integrantes ? t.integrantes.map((i, pIdx) => `
@@ -739,7 +777,7 @@
         });
       }
 
-      // 2. Partidos y Resultados Agrupados
+      // 2. Partidos, Horarios y Resultados Agrupados
       const mContainer = document.getElementById('adminMatches');
       if (mContainer) {
         mContainer.innerHTML = '';
@@ -749,10 +787,25 @@
           grouped[round].forEach(m => {
             block += `
               <div class="bg-black p-3 rounded border border-gray-800 space-y-2 text-xs">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center border-b border-gray-900 pb-2">
                   <span class="font-bold text-white">${m.local} vs ${m.visitante}</span>
                   <button onclick="eliminarPartido('${m.id}')" class="bg-red-900/60 text-red-200 px-2 py-0.5 text-[10px] rounded font-bold">🗑️ Borrar</button>
                 </div>
+
+                <!-- CAMBIAR FECHA Y HORA -->
+                <div class="grid grid-cols-3 gap-1 items-center">
+                  <div class="col-span-1">
+                    <label class="text-[9px] text-gray-500 block">N° Fecha</label>
+                    <input type="number" id="edit_round_${m.id}" value="${m.fechaNum || 1}" min="1" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full text-center">
+                  </div>
+                  <div class="col-span-2">
+                    <label class="text-[9px] text-gray-500 block">Horario</label>
+                    <input type="datetime-local" id="edit_date_${m.id}" value="${m.fechaHora || ''}" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full">
+                  </div>
+                </div>
+                <button onclick="editarPartidoAdmin('${m.id}')" class="w-full bg-amber-600/80 hover:bg-amber-600 text-white text-[10px] py-1 rounded font-bold">⌚ Actualizar Fecha/Hora</button>
+
+                <!-- RESULTADO FINAL -->
                 <div class="flex items-center justify-between pt-1 border-t border-gray-900">
                   <span class="text-[10px] text-gray-400">Resultado final:</span>
                   <div class="flex items-center space-x-1">
@@ -781,7 +834,10 @@
                 <span class="font-bold text-white">${u}</span>
                 <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
               </div>
-              <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
+              <div class="space-x-1">
+                <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
+                <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
+              </div>
             </div>
           `;
         });
