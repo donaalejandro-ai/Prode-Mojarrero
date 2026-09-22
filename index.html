@@ -270,11 +270,10 @@
       }
     }
 
-    async function handleLogin() {
+    function handleLogin() {
       const nameInput = document.getElementById('loginUsernameInput').value.trim();
       const pin = document.getElementById('loginPinInput').value.trim();
       const err = document.getElementById('authError');
-      const btn = document.getElementById('btnLoginSubmit');
 
       if (!nameInput || pin.length !== 4) {
         err.innerText = "Ingresá un usuario y un PIN de 4 dígitos.";
@@ -282,52 +281,32 @@
         return;
       }
 
-      btn.disabled = true;
-      btn.innerText = "Verificando...";
+      // Validación directa sobre los datos cargados en tiempo real
+      let foundUser = Object.keys(usersData).find(u => u.toLowerCase() === nameInput.toLowerCase());
 
-      try {
-        const snapshot = await db.collection('users').get();
-        let foundUser = null;
-        let foundPin = null;
-
-        snapshot.forEach(doc => {
-          if (doc.id.toLowerCase() === nameInput.toLowerCase()) {
-            foundUser = doc.id;
-            foundPin = doc.data().pin;
-          }
-        });
-
-        if (!foundUser) {
-          err.innerText = "Usuario no registrado. Creá tu cuenta en 'Registrarse'.";
-          err.classList.remove('hidden');
-          return;
-        }
-
-        if (foundPin !== pin) {
-          err.innerText = "PIN Incorrecto.";
-          err.classList.remove('hidden');
-          return;
-        }
-
-        currentUser = foundUser;
-        localStorage.setItem('pm_session_user', currentUser);
-        err.classList.add('hidden');
-        showLoggedInUser();
-        switchTab('pronosticos');
-      } catch (e) {
-        err.innerText = "Error de conexión con la base de datos.";
+      if (!foundUser) {
+        err.innerText = "Usuario no registrado. Creá tu cuenta en 'Registrarse'.";
         err.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Entrar";
+        return;
       }
+
+      if (usersData[foundUser].pin !== pin) {
+        err.innerText = "PIN Incorrecto.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      currentUser = foundUser;
+      localStorage.setItem('pm_session_user', currentUser);
+      err.classList.add('hidden');
+      showLoggedInUser();
+      switchTab('pronosticos');
     }
 
-    async function handleRegister() {
+    function handleRegister() {
       const name = document.getElementById('registerUsernameInput').value.trim();
       const pin = document.getElementById('registerPinInput').value.trim();
       const err = document.getElementById('authError');
-      const btn = document.getElementById('btnRegisterSubmit');
 
       if (!name || pin.length !== 4) {
         err.innerText = "Completá nombre y PIN de 4 dígitos.";
@@ -335,39 +314,27 @@
         return;
       }
 
-      btn.disabled = true;
-      btn.innerText = "Creando cuenta en la nube...";
+      let exists = Object.keys(usersData).some(u => u.toLowerCase() === name.toLowerCase());
 
-      try {
-        const snapshot = await db.collection('users').get();
-        let exists = false;
-        snapshot.forEach(doc => {
-          if (doc.id.toLowerCase() === name.toLowerCase()) exists = true;
-        });
+      if (exists) {
+        err.innerText = "Ese usuario ya existe. Ingresá desde la pestaña 'Ingresar'.";
+        err.classList.remove('hidden');
+        return;
+      }
 
-        if (exists) {
-          err.innerText = "Ese usuario ya existe. Ingresá desde la pestaña 'Ingresar'.";
-          err.classList.remove('hidden');
-          return;
-        }
-
-        await db.collection('users').doc(name).set({ 
-          pin: pin, 
-          creado: new Date().toISOString() 
-        });
-
+      db.collection('users').doc(name).set({ 
+        pin: pin, 
+        creado: new Date().toISOString() 
+      }).then(() => {
         currentUser = name;
         localStorage.setItem('pm_session_user', currentUser);
         err.classList.add('hidden');
         showLoggedInUser();
         switchTab('pronosticos');
-      } catch (e) {
-        err.innerText = "Error de conexión. Verificá tu señal de internet e intentá de nuevo.";
+      }).catch(() => {
+        err.innerText = "Error de conexión con Firebase.";
         err.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerText = "Crear Cuenta e Ingresar";
-      }
+      });
     }
 
     function showLoggedInUser() {
@@ -423,4 +390,495 @@
       const container = document.getElementById('matchesList');
       container.innerHTML = '';
       if (matchesData.length === 0) {
-        container.innerHTML = '<p class="
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No hay partidos cargados.</p>';
+        return;
+      }
+
+      const now = new Date();
+      const grouped = groupMatchesByRound(matchesData);
+      const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+
+      rounds.forEach(round => {
+        const sortedMatches = grouped[round].sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
+
+        let roundHTML = `
+          <div class="space-y-3">
+            <div class="flex items-center space-x-2 border-b border-[#39FF14]/40 pb-1">
+              <span class="text-xs font-black uppercase text-black bg-[#39FF14] px-2 py-0.5 rounded">Fecha ${round}</span>
+            </div>
+            <div class="space-y-3">
+        `;
+
+        sortedMatches.forEach(m => {
+          const matchTime = new Date(m.fechaHora);
+          const isLocked = now >= matchTime;
+          const predKey = `${currentUser}_${m.id}`;
+          const predDoc = predictionsData[predKey];
+
+          const gl = (predDoc && predDoc.l !== undefined) ? predDoc.l : '';
+          const gv = (predDoc && predDoc.v !== undefined) ? predDoc.v : '';
+          const hasSaved = (gl !== '' && gv !== '');
+
+          const hasRealScore = (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined);
+          const realScoreHTML = (isLocked && hasRealScore) 
+            ? `<div class="text-[10px] text-[#39FF14] text-center font-bold mt-2">Resultado final: ${m.golesL} - ${m.golesV}</div>` 
+            : (isLocked ? `<div class="text-[10px] text-gray-500 text-center mt-2">Esperando resultado...</div>` : '');
+
+          const statusBadge = hasSaved 
+            ? `<span class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded text-[9px] font-bold">✓ Guardado (${gl} - ${gv})</span>`
+            : `<span class="bg-amber-900/40 text-amber-300 border border-amber-700/50 px-2 py-0.5 rounded text-[9px]">Sin pronóstico</span>`;
+
+          roundHTML += `
+            <div class="bg-[#111] p-3 rounded-lg border ${hasSaved ? 'border-[#39FF14]/40' : 'border-gray-800'}">
+              <div class="flex items-center justify-between text-[10px] text-gray-400 mb-2">
+                <span>📅 ${m.fechaHora ? m.fechaHora.replace('T', ' ') : 'Sin fecha'} hs ${isLocked ? '<strong class="text-red-500">(CERRADO)</strong>' : ''}</span>
+                ${statusBadge}
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="w-1/3 text-right font-bold text-xs">${m.local}</span>
+                <div class="flex items-center space-x-1">
+                  <input type="number" id="pred_l_${m.id}" value="${gl}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
+                  <span class="text-xs text-gray-500">-</span>
+                  <input type="number" id="pred_v_${m.id}" value="${gv}" ${isLocked ? 'disabled' : ''} class="w-10 text-center bg-black border border-[#39FF14]/50 rounded p-1 text-white font-bold">
+                </div>
+                <span class="w-1/3 text-left font-bold text-xs">${m.visitante}</span>
+              </div>
+              ${realScoreHTML}
+            </div>
+          `;
+        });
+
+        roundHTML += `</div></div>`;
+        container.innerHTML += roundHTML;
+      });
+    }
+
+    async function guardarPronosticos() {
+      if (!currentUser) return alert("Ingresá a tu cuenta para guardar.");
+      
+      if (!navigator.onLine) {
+        return alert("Error de conexión: No tenés señal de internet. Conectate a una red para guardar en la nube.");
+      }
+
+      const btn = document.getElementById('btnSavePredictions');
+      const now = new Date();
+      let promises = [];
+      let count = 0;
+
+      btn.disabled = true;
+      btn.innerText = "⏳ Guardando en la nube...";
+
+      try {
+        matchesData.forEach(m => {
+          if (!m.fechaHora || now < new Date(m.fechaHora)) {
+            const inputL = document.getElementById(`pred_l_${m.id}`);
+            const inputV = document.getElementById(`pred_v_${m.id}`);
+
+            if (inputL && inputV) {
+              const gl = inputL.value.trim();
+              const gv = inputV.value.trim();
+
+              if (gl !== '' && gv !== '') {
+                const predRef = db.collection('predictions').doc(`${currentUser}_${m.id}`);
+                promises.push(
+                  predRef.set({
+                    user: currentUser,
+                    matchId: m.id,
+                    l: parseInt(gl),
+                    v: parseInt(gv),
+                    updatedAt: new Date().toISOString()
+                  }, { merge: true })
+                );
+                count++;
+              }
+            }
+          }
+        });
+
+        if (count === 0) {
+          btn.disabled = false;
+          btn.innerText = "💾 Guardar Mis Pronósticos";
+          return alert("Cargá al menos un resultado válido.");
+        }
+
+        await Promise.all(promises);
+        alert("¡Pronósticos guardados correctamente en la nube!");
+      } catch (err) {
+        alert("Error de conexión: No se pudieron guardar tus apuestas en la nube.");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "💾 Guardar Mis Pronósticos";
+      }
+    }
+
+    function renderPosiciones() {
+      const tbody = document.getElementById('leaderboardBody');
+      tbody.innerHTML = '';
+      const now = new Date();
+
+      let scores = {};
+      Object.keys(usersData).forEach(u => {
+        scores[u] = { user: u, puntos: 0, exactos: 0, tendencias: 0 };
+      });
+
+      matchesData.forEach(m => {
+        if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
+          Object.keys(usersData).forEach(u => {
+            const predKey = `${u}_${m.id}`;
+            const pred = predictionsData[predKey];
+            if (pred) {
+              const pL = pred.l;
+              const pV = pred.v;
+              const rL = m.golesL;
+              const rV = m.golesV;
+
+              if (pL === rL && pV === rV) {
+                scores[u].puntos += 3; scores[u].exactos += 1;
+              } else if ((pL > pV && rL > rV) || (pL < pV && rL < rV) || (pL === pV && rL === rV)) {
+                scores[u].puntos += 1; scores[u].tendencias += 1;
+              }
+            }
+          });
+        }
+      });
+
+      const sorted = Object.values(scores).sort((a, b) => b.puntos - a.puntos);
+
+      sorted.forEach((data, idx) => {
+        const nombre = data.user;
+        const isSelected = selectedPlayerDetail === nombre;
+
+        tbody.innerHTML += `
+          <tr onclick="togglePlayerDetail('${nombre}')" class="border-b border-gray-900 cursor-pointer hover:bg-gray-900/60 transition-colors">
+            <td class="p-3 font-bold ${idx === 0 ? 'neon-text' : ''}">${idx + 1}</td>
+            <td class="p-3 font-bold flex items-center justify-between">
+              <span>${nombre}</span>
+              <span class="text-[10px] text-gray-500">${isSelected ? '▲' : '▼'}</span>
+            </td>
+            <td class="p-3 text-center text-gray-400">${data.exactos}</td>
+            <td class="p-3 text-center text-gray-400">${data.tendencias}</td>
+            <td class="p-3 text-right font-bold text-[#39FF14] text-sm">${data.puntos}</td>
+          </tr>
+        `;
+
+        if (isSelected) {
+          let detailHTML = `<td colspan="5" class="p-3 bg-black/80 border-b border-[#39FF14]/30">`;
+          detailHTML += `<div class="text-[11px] font-bold text-[#39FF14] mb-2 uppercase tracking-wider">Pronósticos de ${nombre}:</div>`;
+
+          if (matchesData.length === 0) {
+            detailHTML += `<p class="text-[10px] text-gray-500">Sin partidos.</p>`;
+          } else {
+            const grouped = groupMatchesByRound(matchesData);
+            const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+
+            detailHTML += `<div class="space-y-3">`;
+            rounds.forEach(round => {
+              const sortedMatches = grouped[round].sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
+
+              detailHTML += `<div><div class="text-[10px] font-bold text-[#39FF14] mb-1">Fecha ${round}</div><div class="space-y-1">`;
+
+              sortedMatches.forEach(m => {
+                const matchTime = new Date(m.fechaHora);
+                const isLocked = now >= matchTime;
+                const isOwn = (currentUser === nombre);
+                const pred = predictionsData[`${nombre}_${m.id}`];
+
+                let statusText = '';
+                let badgeColor = 'bg-gray-800 text-gray-400';
+
+                if (!pred || pred.l === undefined || pred.v === undefined) {
+                  statusText = 'Sin jugar';
+                } else if (!isLocked && !isOwn) {
+                  statusText = '🔒 Oculto';
+                  badgeColor = 'bg-amber-900/30 text-amber-400 border border-amber-700/40';
+                } else {
+                  statusText = `${pred.l} - ${pred.v}`;
+                  badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
+
+                  if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
+                    if (pred.l === m.golesL && pred.v === m.golesV) {
+                      statusText += ' (+3 pts)';
+                      badgeColor = 'bg-green-600 text-white font-bold';
+                    } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesV === m.golesV)) {
+                      statusText += ' (+1 pt)';
+                      badgeColor = 'bg-yellow-600 text-white font-bold';
+                    } else {
+                      statusText += ' (0 pts)';
+                      badgeColor = 'bg-gray-800 text-gray-400';
+                    }
+                  }
+                }
+
+                detailHTML += `
+                  <div class="flex justify-between items-center text-[11px] bg-[#111] p-1.5 rounded border border-gray-800">
+                    <span class="font-semibold text-gray-300">${m.local} vs ${m.visitante}</span>
+                    <span class="px-2 py-0.5 rounded text-[9px] ${badgeColor}">${statusText}</span>
+                  </div>
+                `;
+              });
+
+              detailHTML += `</div></div>`;
+            });
+            detailHTML += `</div>`;
+          }
+
+          detailHTML += `</td>`;
+          tbody.innerHTML += `<tr class="bg-black/40">${detailHTML}</tr>`;
+        }
+      });
+    }
+
+    function togglePlayerDetail(nombre) {
+      selectedPlayerDetail = (selectedPlayerDetail === nombre) ? null : nombre;
+      renderPosiciones();
+    }
+
+    function renderEquipos() {
+      const container = document.getElementById('teamsList');
+      container.innerHTML = '';
+      if (teamsData.length === 0) {
+        container.innerHTML = '<p class="text-xs text-gray-500 text-center">No hay equipos creados.</p>';
+        return;
+      }
+      teamsData.forEach(t => {
+        container.innerHTML += `
+          <div class="bg-[#111] p-4 rounded-xl border border-gray-800">
+            <h3 class="text-sm font-bold text-[#39FF14] mb-2">🛡️ ${t.nombre}</h3>
+            <ul class="text-xs text-gray-300 grid grid-cols-2 gap-1">
+              ${t.integrantes && t.integrantes.length > 0 ? t.integrantes.map(i => `<li>• ${i}</li>`).join('') : '<li class="text-gray-600">Sin integrantes</li>'}
+            </ul>
+          </div>
+        `;
+      });
+    }
+
+    function checkAdmin() {
+      if (document.getElementById('adminPassInput').value === 'admin123') {
+        document.getElementById('adminAuth').classList.add('hidden');
+        document.getElementById('adminPanel').classList.remove('hidden');
+        updateAdminSelects();
+        renderAdmin();
+      } else {
+        alert("Clave de Admin incorrecta.");
+      }
+    }
+
+    function crearEquipo() {
+      const name = document.getElementById('newTeamName').value.trim();
+      if (!name) return alert("Escribí un nombre.");
+      db.collection('teams').add({ nombre: name, integrantes: [] });
+      document.getElementById('newTeamName').value = '';
+    }
+
+    function editarNombreEquipo(id, nombreActual) {
+      const nuevo = prompt("Nuevo nombre para el equipo:", nombreActual);
+      if (nuevo && nuevo.trim() !== '') {
+        db.collection('teams').doc(id).update({ nombre: nuevo.trim() })
+          .then(() => alert("Nombre actualizado."));
+      }
+    }
+
+    function eliminarEquipo(id) {
+      if (confirm("¿Eliminar equipo?")) db.collection('teams').doc(id).delete();
+    }
+
+    function sumarJugadorAEquipo(id) {
+      const name = prompt("Nombre del integrante:");
+      if (name && name.trim()) {
+        const team = teamsData.find(t => t.id === id);
+        const list = team.integrantes || [];
+        list.push(name.trim());
+        db.collection('teams').doc(id).update({ integrantes: list });
+      }
+    }
+
+    function borrarJugadorDeEquipo(teamId, pIdx) {
+      const team = teamsData.find(t => t.id === teamId);
+      const list = team.integrantes || [];
+      list.splice(pIdx, 1);
+      db.collection('teams').doc(teamId).update({ integrantes: list });
+    }
+
+    function updateAdminSelects() {
+      const sl = document.getElementById('selectLocal');
+      const sv = document.getElementById('selectVisitante');
+      if (!sl || !sv) return;
+      sl.innerHTML = ''; sv.innerHTML = '';
+      teamsData.forEach(t => {
+        sl.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
+        sv.innerHTML += `<option value="${t.nombre}">${t.nombre}</option>`;
+      });
+    }
+
+    function crearPartido() {
+      const roundVal = document.getElementById('matchRound').value;
+      const local = document.getElementById('selectLocal').value;
+      const visitante = document.getElementById('selectVisitante').value;
+      const fechaHora = document.getElementById('matchDateTime').value;
+
+      if (!roundVal || !local || !visitante || !fechaHora || local === visitante) {
+        return alert("Completá todos los campos correctamente.");
+      }
+
+      db.collection('matches').add({
+        fechaNum: parseInt(roundVal),
+        local: local,
+        visitante: visitante,
+        fechaHora: fechaHora,
+        golesL: null,
+        golesV: null
+      }).then(() => alert("¡Partido creado!"));
+    }
+
+    function editarPartidoAdmin(id) {
+      const roundInput = document.getElementById(`edit_round_${id}`);
+      const dateInput = document.getElementById(`edit_date_${id}`);
+
+      const newRound = parseInt(roundInput.value);
+      const newDate = dateInput.value;
+
+      if (isNaN(newRound) || newRound < 1) return alert("Ingresá un número de fecha válido.");
+      if (!newDate) return alert("Seleccioná una fecha y hora válida.");
+
+      db.collection('matches').doc(id).update({
+        fechaNum: newRound,
+        fechaHora: newDate
+      }).then(() => {
+        alert("¡Fecha y horario del partido actualizados!");
+      }).catch(err => {
+        alert("Error al actualizar el partido.");
+      });
+    }
+
+    function eliminarPartido(id) {
+      if (confirm("¿Borrar este partido?")) db.collection('matches').doc(id).delete();
+    }
+
+    function guardarResultado(id) {
+      const gl = document.getElementById(`real_l_${id}`).value;
+      const gv = document.getElementById(`real_v_${id}`).value;
+      if (gl !== '' && gv !== '') {
+        db.collection('matches').doc(id).update({
+          golesL: parseInt(gl),
+          golesV: parseInt(gv)
+        }).then(() => alert("Resultado guardado."));
+      }
+    }
+
+    function resetPin(u) {
+      const newPin = prompt(`Nuevo PIN de 4 dígitos para ${u}:`);
+      if (newPin && newPin.trim().length === 4) {
+        db.collection('users').doc(u).update({ pin: newPin.trim() })
+          .then(() => alert(`PIN de ${u} actualizado con éxito.`));
+      } else if (newPin !== null) {
+        alert("El PIN debe tener exactamente 4 dígitos.");
+      }
+    }
+
+    function renderAdmin() {
+      // 1. Equipos e Integrantes
+      const tContainer = document.getElementById('adminTeamsManager');
+      if (tContainer) {
+        tContainer.innerHTML = '';
+        teamsData.forEach(t => {
+          tContainer.innerHTML += `
+            <div class="bg-black p-3 rounded border border-gray-800 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="font-bold text-[#39FF14]">${t.nombre}</span>
+                <div class="space-x-1">
+                  <button onclick="editarNombreEquipo('${t.id}', '${t.nombre}')" class="bg-gray-800 text-white px-2 py-0.5 rounded text-[10px]">✏️ Editar</button>
+                  <button onclick="eliminarEquipo('${t.id}')" class="bg-red-900 text-red-200 px-2 py-0.5 rounded text-[10px]">🗑️ Borrar</button>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-1 mt-1">
+                ${t.integrantes ? t.integrantes.map((i, pIdx) => `
+                  <span class="bg-[#222] px-2 py-0.5 rounded flex items-center space-x-1">
+                    <span>${i}</span>
+                    <button onclick="borrarJugadorDeEquipo('${t.id}',${pIdx})" class="text-red-400 font-bold ml-1">×</button>
+                  </span>
+                `).join('') : ''}
+                <button onclick="sumarJugadorAEquipo('${t.id}')" class="bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40 px-2 py-0.5 rounded font-bold">+ Jugador</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      // 2. Partidos, Horarios y Resultados Agrupados y Ordenados
+      const mContainer = document.getElementById('adminMatches');
+      if (mContainer) {
+        mContainer.innerHTML = '';
+        const grouped = groupMatchesByRound(matchesData);
+        Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b)).forEach(round => {
+          const sortedMatches = grouped[round].sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
+
+          let block = `<div class="space-y-2"><div class="text-xs font-bold text-[#39FF14] border-b border-[#39FF14]/30 pb-1">Fecha ${round}</div><div class="space-y-3">`;
+          sortedMatches.forEach(m => {
+            block += `
+              <div class="bg-black p-3 rounded border border-gray-800 space-y-2 text-xs">
+                <div class="flex justify-between items-center border-b border-gray-900 pb-2">
+                  <span class="font-bold text-white">${m.local} vs ${m.visitante}</span>
+                  <button onclick="eliminarPartido('${m.id}')" class="bg-red-900/60 text-red-200 px-2 py-0.5 text-[10px] rounded font-bold">🗑️ Borrar</button>
+                </div>
+
+                <!-- CAMBIAR FECHA Y HORA -->
+                <div class="grid grid-cols-3 gap-1 items-center">
+                  <div class="col-span-1">
+                    <label class="text-[9px] text-gray-500 block">N° Fecha</label>
+                    <input type="number" id="edit_round_${m.id}" value="${m.fechaNum || 1}" min="1" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full text-center">
+                  </div>
+                  <div class="col-span-2">
+                    <label class="text-[9px] text-gray-500 block">Horario</label>
+                    <input type="datetime-local" id="edit_date_${m.id}" value="${m.fechaHora || ''}" class="bg-[#111] border border-gray-700 text-white text-[10px] rounded p-1 w-full">
+                  </div>
+                </div>
+                <button onclick="editarPartidoAdmin('${m.id}')" class="w-full bg-amber-600/80 hover:bg-amber-600 text-white text-[10px] py-1 rounded font-bold">⌚ Actualizar Fecha/Hora</button>
+
+                <!-- RESULTADO FINAL -->
+                <div class="flex items-center justify-between pt-1 border-t border-gray-900">
+                  <span class="text-[10px] text-gray-400">Resultado final:</span>
+                  <div class="flex items-center space-x-1">
+                    <input type="number" id="real_l_${m.id}" value="${m.golesL !== null && m.golesL !== undefined ? m.golesL : ''}" placeholder="L" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                    <span>-</span>
+                    <input type="number" id="real_v_${m.id}" value="${m.golesV !== null && m.golesV !== undefined ? m.golesV : ''}" placeholder="V" class="w-9 text-center bg-[#222] text-white rounded p-1 border border-gray-700">
+                    <button onclick="guardarResultado('${m.id}')" class="bg-green-600 text-white px-2 py-1 text-[10px] rounded font-bold">Guardar</button>
+                  </div>
+                </div>
+              </div>
+            `;
+          });
+          block += `</div></div>`;
+          mContainer.innerHTML += block;
+        });
+      }
+
+      // 3. Usuarios Registrados y PINs
+      const uContainer = document.getElementById('adminUsersList');
+      if (uContainer) {
+        uContainer.innerHTML = '';
+        Object.entries(usersData).forEach(([u, d]) => {
+          uContainer.innerHTML += `
+            <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
+              <div>
+                <span class="font-bold text-white">${u}</span>
+                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
+              </div>
+              <div class="space-x-1">
+                <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
+                <button onclick="eliminarUsuario('${u}')" class="bg-red-900 text-red-200 px-2 py-1 text-[10px] rounded">Borrar</button>
+              </div>
+            </div>
+          `;
+        });
+      }
+    }
+
+    function eliminarUsuario(u) {
+      if (confirm(`¿Borrar a ${u}?`)) {
+        db.collection('users').doc(u).delete();
+        if (currentUser === u) logout();
+      }
+    }
+  </script>
+</body>
+</html>
