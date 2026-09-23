@@ -242,7 +242,7 @@
       db.collection('users').onSnapshot(snapshot => {
         usersData = {};
         snapshot.forEach(doc => { usersData[doc.id] = doc.data(); });
-        logStatus(`Conectado (${getAllKnownUsers().length} usuarios detectados)`);
+        logStatus(`Conectado (${getAllKnownUsers().length} usuarios)`);
         refreshCurrentTab();
       }, err => {
         logStatus(`Error en lectura de usuarios: ${err.message}`);
@@ -263,7 +263,7 @@
       db.collection('predictions').onSnapshot(snapshot => {
         predictionsData = {};
         snapshot.forEach(doc => { predictionsData[doc.id] = doc.data(); });
-        logStatus(`Conectado (${getAllKnownUsers().length} usuarios detectados)`);
+        logStatus(`Conectado (${getAllKnownUsers().length} usuarios)`);
         refreshCurrentTab();
       });
     }
@@ -905,10 +905,28 @@
       }
     }
 
-    function eliminarUsuario(u) {
-      if (confirm(`¿Borrar a ${u}?`)) {
-        db.collection('users').doc(u).delete();
-        if (currentUser === u) logout();
+    async function eliminarUsuario(u) {
+      if (confirm(`¿Borrar a ${u} y eliminar todos sus pronósticos guardados?`)) {
+        let batch = db.batch();
+        
+        // 1. Eliminar el documento de usuario
+        let userRef = db.collection('users').doc(u);
+        batch.delete(userRef);
+
+        // 2. Buscar y eliminar todas sus apuestas para que no vuelva a auto-detectarse
+        Object.entries(predictionsData).forEach(([predId, predDoc]) => {
+          if (predDoc && (predDoc.user === u || predId.startsWith(`${u}_`))) {
+            batch.delete(db.collection('predictions').doc(predId));
+          }
+        });
+
+        try {
+          await batch.commit();
+          alert(`Usuario ${u} y sus apuestas fueron eliminados con éxito.`);
+          if (currentUser === u) logout();
+        } catch (e) {
+          alert("Error al intentar borrar el usuario de la base de datos.");
+        }
       }
     }
   </script>
