@@ -104,7 +104,6 @@
 
       <p id="authError" class="text-red-400 text-xs mt-4 text-center font-semibold bg-red-950/40 p-2 rounded border border-red-800/50 hidden"></p>
       
-      <!-- LOG DE CONEXIÓN CON FIREBASE -->
       <div id="firebaseLog" class="text-[10px] text-gray-500 mt-4 p-2 bg-black rounded border border-gray-900 font-mono">
         Estado Firebase: Conectando...
       </div>
@@ -231,11 +230,19 @@
       if (el) el.innerText = `Estado Firebase: ${msg}`;
     }
 
+    function getAllKnownUsers() {
+      const set = new Set(Object.keys(usersData));
+      Object.values(predictionsData).forEach(p => {
+        if (p && p.user) set.add(p.user);
+      });
+      return Array.from(set);
+    }
+
     function initRealtimeListeners() {
       db.collection('users').onSnapshot(snapshot => {
         usersData = {};
         snapshot.forEach(doc => { usersData[doc.id] = doc.data(); });
-        logStatus(`Conectado (${Object.keys(usersData).length} usuarios)`);
+        logStatus(`Conectado (${getAllKnownUsers().length} usuarios detectados)`);
         refreshCurrentTab();
       }, err => {
         logStatus(`Error en lectura de usuarios: ${err.message}`);
@@ -256,6 +263,7 @@
       db.collection('predictions').onSnapshot(snapshot => {
         predictionsData = {};
         snapshot.forEach(doc => { predictionsData[doc.id] = doc.data(); });
+        logStatus(`Conectado (${getAllKnownUsers().length} usuarios detectados)`);
         refreshCurrentTab();
       });
     }
@@ -294,60 +302,67 @@
         return;
       }
 
-      // 1. Verificación directa contra el cache local
-      let foundUser = Object.keys(usersData).find(u => u.toLowerCase() === nameInput.toLowerCase());
+      const searchKey = nameInput.toLowerCase();
+      const allUsers = getAllKnownUsers();
+      let foundUser = allUsers.find(u => u.toLowerCase() === searchKey);
 
-      if (foundUser) {
-        if (usersData[foundUser].pin === pin) {
-          currentUser = foundUser;
-          localStorage.setItem('pm_session_user', currentUser);
-          err.classList.add('hidden');
-          showLoggedInUser();
-          switchTab('pronosticos');
-          return;
-        } else {
+      if (foundUser && usersData[foundUser]) {
+        if (usersData[foundUser].pin !== pin) {
           err.innerText = "PIN Incorrecto.";
           err.classList.remove('hidden');
           return;
         }
       }
 
-      // 2. Si no lo encuentra en memoria local, intenta acceso directo
-      currentUser = nameInput;
+      currentUser = foundUser || nameInput;
       localStorage.setItem('pm_session_user', currentUser);
       err.classList.add('hidden');
       showLoggedInUser();
       switchTab('pronosticos');
     }
 
-    function handleRegister() {
-      const name = document.getElementById('registerUsernameInput').value.trim();
+    async function handleRegister() {
+      const rawName = document.getElementById('registerUsernameInput').value.trim();
       const pin = document.getElementById('registerPinInput').value.trim();
       const err = document.getElementById('authError');
+      const btn = document.getElementById('btnRegisterSubmit');
 
-      if (!name || pin.length !== 4) {
+      if (!rawName || pin.length !== 4) {
         err.innerText = "Completá nombre y PIN de 4 dígitos.";
         err.classList.remove('hidden');
         return;
       }
 
-      db.collection('users').doc(name).set({ 
-        pin: pin, 
-        creado: new Date().toISOString() 
-      }).then(() => {
-        currentUser = name;
+      const searchKey = rawName.toLowerCase();
+      let exists = getAllKnownUsers().some(u => u.toLowerCase() === searchKey);
+
+      if (exists) {
+        err.innerText = "Ese usuario ya existe. Ingresá desde la pestaña 'Ingresar'.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerText = "Creando en la nube...";
+
+      try {
+        await db.collection('users').doc(rawName).set({ 
+          pin: pin, 
+          creado: new Date().toISOString() 
+        });
+
+        currentUser = rawName;
         localStorage.setItem('pm_session_user', currentUser);
         err.classList.add('hidden');
         showLoggedInUser();
         switchTab('pronosticos');
-      }).catch(e => {
-        // Fallback local si la regla de Firebase bloquea la escritura
-        currentUser = name;
-        localStorage.setItem('pm_session_user', currentUser);
-        err.classList.add('hidden');
-        showLoggedInUser();
-        switchTab('pronosticos');
-      });
+      } catch (e) {
+        err.innerText = "Error de conexión: No se pudo crear el usuario en la nube.";
+        err.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Crear Cuenta e Ingresar";
+      }
     }
 
     function showLoggedInUser() {
@@ -470,7 +485,7 @@
       if (!currentUser) return alert("Ingresá a tu cuenta para guardar.");
       
       if (!navigator.onLine) {
-        return alert("Error de conexión: No tenés señal de internet. Conectate a una red para guardar en la nube.");
+        return alert("Error de conexión: No tenés señal de internet.");
       }
 
       const btn = document.getElementById('btnSavePredictions');
@@ -530,13 +545,15 @@
       const now = new Date();
 
       let scores = {};
-      Object.keys(usersData).forEach(u => {
+      const allUsers = getAllKnownUsers();
+
+      allUsers.forEach(u => {
         scores[u] = { user: u, puntos: 0, exactos: 0, tendencias: 0 };
       });
 
       matchesData.forEach(m => {
         if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
-          Object.keys(usersData).forEach(u => {
+          allUsers.forEach(u => {
             const predKey = `${u}_${m.id}`;
             const pred = predictionsData[predKey];
             if (pred) {
@@ -781,7 +798,7 @@
     function resetPin(u) {
       const newPin = prompt(`Nuevo PIN de 4 dígitos para ${u}:`);
       if (newPin && newPin.trim().length === 4) {
-        db.collection('users').doc(u).update({ pin: newPin.trim() })
+        db.collection('users').doc(u).set({ pin: newPin.trim() }, { merge: true })
           .then(() => alert(`PIN de ${u} actualizado con éxito.`));
       } else if (newPin !== null) {
         alert("El PIN debe tener exactamente 4 dígitos.");
@@ -869,12 +886,14 @@
       const uContainer = document.getElementById('adminUsersList');
       if (uContainer) {
         uContainer.innerHTML = '';
-        Object.entries(usersData).forEach(([u, d]) => {
+        const allUsers = getAllKnownUsers();
+        allUsers.forEach(u => {
+          const pin = usersData[u] ? usersData[u].pin : 'Sin PIN (Auto-detectado)';
           uContainer.innerHTML += `
             <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
               <div>
                 <span class="font-bold text-white">${u}</span>
-                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${d.pin}</strong></span>
+                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${pin}</strong></span>
               </div>
               <div class="space-x-1">
                 <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
