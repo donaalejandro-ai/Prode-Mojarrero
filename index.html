@@ -629,7 +629,7 @@
                     if (pred.l === m.golesL && pred.v === m.golesV) {
                       statusText += ' (+3 pts)';
                       badgeColor = 'bg-green-600 text-white font-bold';
-                    } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesV === m.golesV)) {
+                    } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesL === m.golesV)) {
                       statusText += ' (+1 pt)';
                       badgeColor = 'bg-yellow-600 text-white font-bold';
                     } else {
@@ -909,11 +909,9 @@
       if (confirm(`¿Borrar a ${u} y eliminar todos sus pronósticos guardados?`)) {
         let batch = db.batch();
         
-        // 1. Eliminar el documento de usuario
         let userRef = db.collection('users').doc(u);
         batch.delete(userRef);
 
-        // 2. Buscar y eliminar todas sus apuestas para que no vuelva a auto-detectarse
         Object.entries(predictionsData).forEach(([predId, predDoc]) => {
           if (predDoc && (predDoc.user === u || predId.startsWith(`${u}_`))) {
             batch.delete(db.collection('predictions').doc(predId));
