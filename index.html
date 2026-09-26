@@ -512,8 +512,8 @@
                   predRef.set({
                     user: currentUser,
                     matchId: m.id,
-                    l: parseInt(gl),
-                    v: parseInt(gv),
+                    l: parseInt(gl, 10),
+                    v: parseInt(gv, 10),
                     updatedAt: new Date().toISOString()
                   }, { merge: true })
                 );
@@ -553,19 +553,22 @@
 
       matchesData.forEach(m => {
         if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
+          const rL = parseInt(m.golesL, 10);
+          const rV = parseInt(m.golesV, 10);
+
           allUsers.forEach(u => {
             const predKey = `${u}_${m.id}`;
             const pred = predictionsData[predKey];
-            if (pred) {
-              const pL = pred.l;
-              const pV = pred.v;
-              const rL = m.golesL;
-              const rV = m.golesV;
+            if (pred && pred.l !== undefined && pred.v !== undefined) {
+              const pL = parseInt(pred.l, 10);
+              const pV = parseInt(pred.v, 10);
 
               if (pL === rL && pV === rV) {
-                scores[u].puntos += 3; scores[u].exactos += 1;
+                scores[u].puntos += 3; 
+                scores[u].exactos += 1;
               } else if ((pL > pV && rL > rV) || (pL < pV && rL < rV) || (pL === pV && rL === rV)) {
-                scores[u].puntos += 1; scores[u].tendencias += 1;
+                scores[u].puntos += 1; 
+                scores[u].tendencias += 1;
               }
             }
           });
@@ -622,14 +625,19 @@
                   statusText = '🔒 Oculto';
                   badgeColor = 'bg-amber-900/30 text-amber-400 border border-amber-700/40';
                 } else {
-                  statusText = `${pred.l} - ${pred.v}`;
+                  const pL = parseInt(pred.l, 10);
+                  const pV = parseInt(pred.v, 10);
+                  statusText = `${pL} - ${pV}`;
                   badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
 
                   if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
-                    if (pred.l === m.golesL && pred.v === m.golesV) {
+                    const rL = parseInt(m.golesL, 10);
+                    const rV = parseInt(m.golesV, 10);
+
+                    if (pL === rL && pV === rV) {
                       statusText += ' (+3 pts)';
                       badgeColor = 'bg-green-600 text-white font-bold';
-                    } else if ((pred.l > pred.v && m.golesL > m.golesV) || (pred.l < pred.v && m.golesL < m.golesV) || (pred.l === pred.v && m.golesL === m.golesV)) {
+                    } else if ((pL > pV && rL > rV) || (pL < pV && rL < rV) || (pL === pV && rL === rV)) {
                       statusText += ' (+1 pt)';
                       badgeColor = 'bg-yellow-600 text-white font-bold';
                     } else {
@@ -751,7 +759,7 @@
       }
 
       db.collection('matches').add({
-        fechaNum: parseInt(roundVal),
+        fechaNum: parseInt(roundVal, 10),
         local: local,
         visitante: visitante,
         fechaHora: fechaHora,
@@ -764,7 +772,7 @@
       const roundInput = document.getElementById(`edit_round_${id}`);
       const dateInput = document.getElementById(`edit_date_${id}`);
 
-      const newRound = parseInt(roundInput.value);
+      const newRound = parseInt(roundInput.value, 10);
       const newDate = dateInput.value;
 
       if (isNaN(newRound) || newRound < 1) return alert("Ingresá un número de fecha válido.");
@@ -789,8 +797,8 @@
       const gv = document.getElementById(`real_v_${id}`).value;
       if (gl !== '' && gv !== '') {
         db.collection('matches').doc(id).update({
-          golesL: parseInt(gl),
-          golesV: parseInt(gv)
+          golesL: parseInt(gl, 10),
+          golesV: parseInt(gv, 10)
         }).then(() => alert("Resultado guardado."));
       }
     }
@@ -839,7 +847,7 @@
       if (mContainer) {
         mContainer.innerHTML = '';
         const grouped = groupMatchesByRound(matchesData);
-        Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b)).forEach(round => {
+        Object.keys(grouped).sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).forEach(round => {
           const sortedMatches = grouped[round].sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
 
           let block = `<div class="space-y-2"><div class="text-xs font-bold text-[#39FF14] border-b border-[#39FF14]/30 pb-1">Fecha ${round}</div><div class="space-y-3">`;
