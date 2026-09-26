@@ -291,13 +291,13 @@
       }
     }
 
-    function handleLogin() {
+    async function handleLogin() {
       const nameInput = document.getElementById('loginUsernameInput').value.trim();
       const pin = document.getElementById('loginPinInput').value.trim();
       const err = document.getElementById('authError');
 
-      if (!nameInput || pin.length !== 4) {
-        err.innerText = "Ingresá un usuario y un PIN de 4 dígitos.";
+      if (!nameInput) {
+        err.innerText = "Ingresá un usuario.";
         err.classList.remove('hidden');
         return;
       }
@@ -306,7 +306,40 @@
       const allUsers = getAllKnownUsers();
       let foundUser = allUsers.find(u => u.toLowerCase() === searchKey);
 
-      if (foundUser && usersData[foundUser]) {
+      if (!foundUser) {
+        err.innerText = "Usuario no encontrado. Registrate primero.";
+        err.classList.remove('hidden');
+        return;
+      }
+
+      // CASO AUTODETECTADO SIN PIN: Le pide crearlo en el momento
+      if (!usersData[foundUser] || !usersData[foundUser].pin) {
+        if (pin.length !== 4) {
+          err.innerText = "Creá tu PIN de 4 dígitos por primera vez para este usuario.";
+          err.classList.remove('hidden');
+          return;
+        }
+
+        try {
+          await db.collection('users').doc(foundUser).set({
+            pin: pin,
+            creado: new Date().toISOString()
+          }, { merge: true });
+
+          alert(`¡PIN guardado correctamente para ${foundUser}! Ya podés ingresar siempre con esta clave.`);
+        } catch (e) {
+          err.innerText = "Error de conexión al guardar tu nuevo PIN.";
+          err.classList.remove('hidden');
+          return;
+        }
+      } else {
+        // VALIDACIÓN CON PIN NORMAL
+        if (pin.length !== 4) {
+          err.innerText = "Ingresá un PIN de 4 dígitos.";
+          err.classList.remove('hidden');
+          return;
+        }
+
         if (usersData[foundUser].pin !== pin) {
           err.innerText = "PIN Incorrecto.";
           err.classList.remove('hidden');
@@ -314,7 +347,7 @@
         }
       }
 
-      currentUser = foundUser || nameInput;
+      currentUser = foundUser;
       localStorage.setItem('pm_session_user', currentUser);
       err.classList.add('hidden');
       showLoggedInUser();
@@ -337,7 +370,7 @@
       let exists = getAllKnownUsers().some(u => u.toLowerCase() === searchKey);
 
       if (exists) {
-        err.innerText = "Ese usuario ya existe. Ingresá desde la pestaña 'Ingresar'.";
+        err.innerText = "Ese usuario ya existe. Si sos vos, ingresá desde la pestaña 'Ingresar'.";
         err.classList.remove('hidden');
         return;
       }
@@ -424,7 +457,7 @@
 
       const now = new Date();
       const grouped = groupMatchesByRound(matchesData);
-      const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+      const rounds = Object.keys(grouped).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
       rounds.forEach(round => {
         const sortedMatches = grouped[round].sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
@@ -443,11 +476,11 @@
           const predKey = `${currentUser}_${m.id}`;
           const predDoc = predictionsData[predKey];
 
-          const gl = (predDoc && predDoc.l !== undefined) ? predDoc.l : '';
-          const gv = (predDoc && predDoc.v !== undefined) ? predDoc.v : '';
+          const gl = (predDoc && predDoc.l !== undefined && predDoc.l !== null) ? predDoc.l : '';
+          const gv = (predDoc && predDoc.v !== undefined && predDoc.v !== null) ? predDoc.v : '';
           const hasSaved = (gl !== '' && gv !== '');
 
-          const hasRealScore = (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined);
+          const hasRealScore = (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined && m.golesL !== '' && m.golesV !== '');
           const realScoreHTML = (isLocked && hasRealScore) 
             ? `<div class="text-[10px] text-[#39FF14] text-center font-bold mt-2">Resultado final: ${m.golesL} - ${m.golesV}</div>` 
             : (isLocked ? `<div class="text-[10px] text-gray-500 text-center mt-2">Esperando resultado...</div>` : '');
@@ -552,16 +585,20 @@
       });
 
       matchesData.forEach(m => {
-        if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
-          const rL = parseInt(m.golesL, 10);
-          const rV = parseInt(m.golesV, 10);
+        if (m.golesL !== null && m.golesL !== undefined && m.golesL !== '' &&
+            m.golesV !== null && m.golesV !== undefined && m.golesV !== '') {
+          
+          const rL = Number(m.golesL);
+          const rV = Number(m.golesV);
 
           allUsers.forEach(u => {
             const predKey = `${u}_${m.id}`;
             const pred = predictionsData[predKey];
-            if (pred && pred.l !== undefined && pred.v !== undefined) {
-              const pL = parseInt(pred.l, 10);
-              const pV = parseInt(pred.v, 10);
+            if (pred && pred.l !== undefined && pred.l !== null && pred.l !== '' &&
+                pred.v !== undefined && pred.v !== null && pred.v !== '') {
+              
+              const pL = Number(pred.l);
+              const pV = Number(pred.v);
 
               if (pL === rL && pV === rV) {
                 scores[u].puntos += 3; 
@@ -602,7 +639,7 @@
             detailHTML += `<p class="text-[10px] text-gray-500">Sin partidos.</p>`;
           } else {
             const grouped = groupMatchesByRound(matchesData);
-            const rounds = Object.keys(grouped).sort((a, b) => parseInt(a) - parseInt(b));
+            const rounds = Object.keys(grouped).sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
 
             detailHTML += `<div class="space-y-3">`;
             rounds.forEach(round => {
@@ -619,20 +656,22 @@
                 let statusText = '';
                 let badgeColor = 'bg-gray-800 text-gray-400';
 
-                if (!pred || pred.l === undefined || pred.v === undefined) {
+                if (!pred || pred.l === undefined || pred.l === null || pred.l === '' ||
+                    pred.v === undefined || pred.v === null || pred.v === '') {
                   statusText = 'Sin jugar';
                 } else if (!isLocked && !isOwn) {
                   statusText = '🔒 Oculto';
                   badgeColor = 'bg-amber-900/30 text-amber-400 border border-amber-700/40';
                 } else {
-                  const pL = parseInt(pred.l, 10);
-                  const pV = parseInt(pred.v, 10);
+                  const pL = Number(pred.l);
+                  const pV = Number(pred.v);
                   statusText = `${pL} - ${pV}`;
                   badgeColor = 'bg-[#39FF14]/20 text-[#39FF14] border border-[#39FF14]/40';
 
-                  if (m.golesL !== null && m.golesL !== undefined && m.golesV !== null && m.golesV !== undefined) {
-                    const rL = parseInt(m.golesL, 10);
-                    const rV = parseInt(m.golesV, 10);
+                  if (m.golesL !== null && m.golesL !== undefined && m.golesL !== '' &&
+                      m.golesV !== null && m.golesV !== undefined && m.golesV !== '') {
+                    const rL = Number(m.golesL);
+                    const rV = Number(m.golesV);
 
                     if (pL === rL && pV === rV) {
                       statusText += ' (+3 pts)';
@@ -799,7 +838,7 @@
         db.collection('matches').doc(id).update({
           golesL: parseInt(gl, 10),
           golesV: parseInt(gv, 10)
-        }).then(() => alert("Resultado guardado."));
+        }).then(() => alert("Resultado guardado correctamente."));
       }
     }
 
@@ -842,7 +881,7 @@
         });
       }
 
-      // 2. Partidos, Horarios y Resultados Agrupados y Ordenados
+      // 2. Partidos, Horarios y Resultados Agrupados
       const mContainer = document.getElementById('adminMatches');
       if (mContainer) {
         mContainer.innerHTML = '';
@@ -890,18 +929,18 @@
         });
       }
 
-      // 3. Usuarios Registrados y PINs
+      // 3. Usuarios Registrados
       const uContainer = document.getElementById('adminUsersList');
       if (uContainer) {
         uContainer.innerHTML = '';
         const allUsers = getAllKnownUsers();
         allUsers.forEach(u => {
-          const pin = usersData[u] ? usersData[u].pin : 'Sin PIN (Auto-detectado)';
+          const pin = (usersData[u] && usersData[u].pin) ? usersData[u].pin : 'Sin PIN (Auto-detectado)';
           uContainer.innerHTML += `
             <div class="flex justify-between items-center bg-black p-2 rounded border border-gray-900">
               <div>
                 <span class="font-bold text-white">${u}</span>
-                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="text-[#39FF14]">${pin}</strong></span>
+                <span class="text-gray-400 text-[10px] ml-2">PIN: <strong class="${pin.includes('Sin PIN') ? 'text-amber-400' : 'text-[#39FF14]'}">${pin}</strong></span>
               </div>
               <div class="space-x-1">
                 <button onclick="resetPin('${u}')" class="bg-gray-800 text-gray-200 px-2 py-1 text-[10px] rounded">PIN</button>
